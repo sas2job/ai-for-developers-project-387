@@ -1,0 +1,27 @@
+{
+  "name": "app",
+  "private": true,
+  "scripts": {
+    "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
+    "lint": "oxlint app/javascript/application.js app/javascript/controllers --deny-warnings",
+    "format": "oxfmt --write app/javascript",
+    "format:check": "oxfmt --check app/javascript",
+    "api:compile": "tsp compile api",
+    "api:client": "openapi-generator-cli generate -i api/generated/openapi.yaml -g javascript -o app/javascript/generated --additional-properties=useES6=true --global-property=apiDocs=false,modelDocs=false,apiTests=false,modelTests=false",
+    "api:generate": "npm run api:compile && npm run api:client && oxfmt --write app/javascript/generated/src"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "3.2.2",
+    "@hotwired/turbo-rails": "8.0.23",
+    "superagent": "10.4.1"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "2.42.0",
+    "@typespec/compiler": "1.17.0",
+    "@typespec/http": "1.17.0",
+    "@typespec/openapi3": "1.17.0",
+    "esbuild": "0.28.2",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0"
+  }
+}

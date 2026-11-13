@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+npm run build -- --watch &
+assets_pid=$!
+trap 'kill "$assets_pid" 2>/dev/null || true' EXIT
+
+bin/rails server -b 0.0.0.0 -p "${PORT:-3000}"

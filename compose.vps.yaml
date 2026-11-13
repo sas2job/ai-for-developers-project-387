@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    image: ai-hexlet-calendar:latest
+    container_name: ai-hexlet-calendar-web
+    restart: unless-stopped
+    env_file: .env.vps
+    environment:
+      PORT: ${PORT:-3000}
+    expose:
+      - "${PORT:-3000}"
+    networks:
+      leave-desk_default:
+        aliases:
+          - ai-hexlet-calendar
+
+networks:
+  leave-desk_default:
+    external: true

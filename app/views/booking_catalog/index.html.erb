@@ -1,0 +1,89 @@
+<main class="page page--centered">
+  <section class="catalog" aria-labelledby="catalog-title">
+    <% if @selected_event_type %>
+      <div
+        data-controller="booking"
+        data-booking-event-type-id-value="<%= @selected_event_type.id %>"
+        data-booking-date-value="<%= @selected_date.iso8601 %>">
+        <%= link_to "← Все типы встреч", book_path, class: "catalog__back-link" %>
+        <p class="eyebrow">Выбранный формат</p>
+        <h1 id="catalog-title"><%= @selected_event_type.name %></h1>
+        <p class="catalog__description"><%= @selected_event_type.description %></p>
+        <p class="event-type-card__duration"><%= @selected_event_type.duration_minutes %> мин.</p>
+
+        <h2 class="catalog__section-title">Выберите дату</h2>
+        <nav class="calendar-days" aria-label="Даты в ближайшие 14 дней">
+          <% @dates.each do |date| %>
+            <%= link_to book_path(event_type_id: @selected_event_type.id, date: date.iso8601),
+              class: [ "calendar-days__link", ("calendar-days__link--selected" if date == @selected_date) ].compact.join(" "),
+              aria: { current: date == @selected_date ? "date" : nil } do %>
+              <time datetime="<%= date.iso8601 %>"><%= date.strftime("%d.%m") %></time>
+            <% end %>
+          <% end %>
+        </nav>
+
+        <h2 class="catalog__section-title">Свободное время</h2>
+        <ul class="available-slots" data-booking-target="slots">
+          <% if @slots.any? %>
+            <% @slots.each do |slot| %>
+              <li>
+                <button
+                  type="button"
+                  class="available-slots__button"
+                  data-booking-target="slot"
+                  data-action="booking#selectSlot"
+                  data-starts-at="<%= slot.starts_at.utc.iso8601 %>"
+                  aria-pressed="false">
+                  <time datetime="<%= slot.starts_at.utc.iso8601 %>"><%= slot.starts_at.strftime("%H:%M") %></time>
+                  <span>–</span>
+                  <time datetime="<%= slot.ends_at.utc.iso8601 %>"><%= slot.ends_at.strftime("%H:%M") %></time>
+                </button>
+              </li>
+            <% end %>
+          <% else %>
+            <li class="available-slots__empty">На эту дату нет свободных слотов. Выберите другой день.</li>
+          <% end %>
+        </ul>
+
+        <p class="selected-time" data-booking-target="selectedTimeLabel" hidden>
+          Выбрано время: <time data-booking-target="selectedTime"></time>
+        </p>
+
+        <form class="guest-booking-form" data-booking-target="form" data-action="submit->booking#submit" hidden>
+          <div class="form-field">
+            <label for="guest-name">Имя</label>
+            <input id="guest-name" name="guestName" type="text" autocomplete="name" required data-booking-target="guestName">
+            <p class="field-error" data-booking-target="guestNameError" hidden></p>
+          </div>
+          <div class="form-field">
+            <label for="guest-email">Email</label>
+            <input id="guest-email" name="guestEmail" type="email" autocomplete="email" required data-booking-target="guestEmail">
+            <p class="field-error" data-booking-target="guestEmailError" hidden></p>
+          </div>
+          <button type="submit" class="button button--primary" data-booking-target="submit">Подтвердить запись</button>
+        </form>
+
+        <p class="booking-status" role="status" aria-live="polite" data-booking-target="status"></p>
+
+        <section class="booking-confirmation" aria-labelledby="confirmation-title" data-booking-target="confirmation" hidden>
+          <h2 id="confirmation-title">Запись подтверждена</h2>
+          <p data-booking-target="confirmationDetails"></p>
+          <p>Письмо-приглашение и ссылка на звонок не отправляются.</p>
+          <%= link_to "Вернуться в каталог", book_path, class: "button button--secondary" %>
+        </section>
+      </div>
+    <% else %>
+      <div data-controller="event-type-catalog">
+      <p class="eyebrow">Выберите формат</p>
+      <h1 id="catalog-title">Каталог типов встреч</h1>
+      <p data-event-type-catalog-target="status" role="status" aria-live="polite">Загружаем типы встреч…</p>
+      <div class="event-type-grid" data-event-type-catalog-target="list"></div>
+      <div class="empty-state" data-event-type-catalog-target="empty" hidden>
+        <h2>Пока нет типов встреч</h2>
+        <p>Владелец календаря скоро добавит варианты для записи.</p>
+        <%= link_to "На главную", root_path, class: "button button--secondary" %>
+      </div>
+      </div>
+    <% end %>
+  </section>
+</main>

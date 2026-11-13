@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+# Prepare the database when a separate PostgreSQL host is configured.
+# Docker smoke checks can start the web process with PORT only; in that case
+# the public landing page should still be able to boot without a database.
+if [ -z "${SECRET_KEY_BASE:-}" ]; then
+  export SECRET_KEY_BASE_DUMMY=1
+fi
+
+if [ "${@: -2:1}" == "./bin/rails" ] && \
+  [ "${@: -1:1}" == "server" ] && \
+  [ -n "${DB_HOST:-}" ] && \
+  [ "${DB_HOST}" != "localhost" ] && \
+  [ "${DB_HOST}" != "127.0.0.1" ]; then
+  ./bin/rails db:prepare
+fi
+
+exec "${@}"

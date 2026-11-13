@@ -1,0 +1,302 @@
+openapi: 3.0.0
+info:
+  title: Call Calendar API
+  version: 0.0.0
+tags: []
+paths:
+  /api/bookings:
+    post:
+      operationId: Bookings_create
+      description: Create a booking; the server calculates its end from the event type duration.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedBooking'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+  /api/bookings/upcoming:
+    get:
+      operationId: Bookings_upcoming
+      description: Return upcoming bookings without guest email addresses.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingSummary'
+  /api/event-types:
+    get:
+      operationId: EventTypes_list
+      description: Return the public catalog of event types.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+    post:
+      operationId: EventTypes_create
+      description: Create an event type.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventTypeRequest'
+  /api/event-types/{eventTypeId}/slots:
+    get:
+      operationId: EventTypes_slots
+      description: Return available starts for an event type on a local calendar date.
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          description: YYYY-MM-DD in the Europe/Moscow calendar.
+          schema:
+            type: string
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/health:
+    get:
+      operationId: getHealth
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ok
+                required:
+                  - status
+components:
+  schemas:
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+    BookingSummary:
+      type: object
+      required:
+        - id
+        - eventTypeId
+        - eventTypeName
+        - startsAt
+        - endsAt
+        - guestName
+      properties:
+        id:
+          type: string
+        eventTypeId:
+          type: string
+        eventTypeName:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.
+        endsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.
+        guestName:
+          type: string
+    CreateBookingRequest:
+      type: object
+      required:
+        - eventTypeId
+        - startsAt
+        - guestName
+        - guestEmail
+      properties:
+        eventTypeId:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+          description: Guest email address.
+    CreateEventTypeRequest:
+      type: object
+      required:
+        - name
+        - description
+        - durationMinutes
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+    CreatedBooking:
+      type: object
+      required:
+        - id
+        - eventTypeId
+        - eventTypeName
+        - startsAt
+        - endsAt
+        - guestName
+        - guestEmail
+      properties:
+        id:
+          type: string
+        eventTypeId:
+          type: string
+        eventTypeName:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.
+        endsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+    ErrorEnvelope:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ApiError'
+    EventType:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          description: Generated by the server.
+        name:
+          type: string
+        description:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    Slot:
+      type: object
+      required:
+        - startsAt
+        - endsAt
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.
+        endsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, serialized with the Z suffix.

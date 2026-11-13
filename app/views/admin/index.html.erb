@@ -1,0 +1,77 @@
+<main class="page admin-page">
+  <section class="admin-panel" aria-labelledby="admin-title">
+    <p class="eyebrow">Владелец календаря</p>
+    <h1 id="admin-title">Управление календарём</h1>
+
+    <% if notice.present? %>
+      <p class="notice" role="status"><%= notice %></p>
+    <% end %>
+
+    <section class="admin-section" aria-labelledby="event-type-form-title">
+      <h2 id="event-type-form-title">Создать тип встречи</h2>
+      <%= form_with model: @event_type, url: admin_event_types_path, class: "event-type-form" do |form| %>
+        <div class="form-field">
+          <%= form.label :name, "Название" %>
+          <%= form.text_field :name, required: true, autocomplete: "off" %>
+          <% @event_type.errors.full_messages_for(:name).each do |message| %>
+            <p class="field-error"><%= message %></p>
+          <% end %>
+        </div>
+
+        <div class="form-field">
+          <%= form.label :description, "Описание" %>
+          <%= form.text_area :description, required: true, rows: 3 %>
+          <% @event_type.errors.full_messages_for(:description).each do |message| %>
+            <p class="field-error"><%= message %></p>
+          <% end %>
+        </div>
+
+        <div class="form-field">
+          <%= form.label :duration_minutes, "Длительность, минут" %>
+          <%= form.number_field :duration_minutes, min: 1, step: 1, required: true %>
+          <% @event_type.errors.full_messages_for(:duration_minutes).each do |message| %>
+            <p class="field-error"><%= message %></p>
+          <% end %>
+        </div>
+
+        <%= form.submit "Создать тип встречи", class: "button button--primary" %>
+      <% end %>
+    </section>
+
+    <section class="admin-section" aria-labelledby="event-types-title">
+      <h2 id="event-types-title">Типы встреч</h2>
+      <% if @event_types.any? %>
+        <ul class="admin-event-type-list">
+          <% @event_types.each do |event_type| %>
+            <li>
+              <strong><%= event_type.name %></strong>
+              <span><%= event_type.duration_minutes %> мин.</span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="empty-state__text">Вы ещё не создали ни одного типа встречи.</p>
+      <% end %>
+    </section>
+
+    <section class="admin-section" aria-labelledby="upcoming-bookings-title">
+      <h2 id="upcoming-bookings-title">Предстоящие встречи</h2>
+      <% if @upcoming_bookings.any? %>
+        <ul class="admin-booking-list">
+          <% @upcoming_bookings.each do |booking| %>
+            <% starts_at = booking.starts_at.in_time_zone(Availability::Slots::TIME_ZONE) %>
+            <% ends_at = booking.ends_at.in_time_zone(Availability::Slots::TIME_ZONE) %>
+            <li>
+              <time datetime="<%= booking.starts_at.utc.iso8601 %>"><%= starts_at.strftime("%d.%m.%Y %H:%M") %></time>
+              <span>– <%= ends_at.strftime("%H:%M") %></span>
+              <strong><%= booking.event_type.name %></strong>
+              <span><%= booking.guest_name %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="empty-state__text">Предстоящих встреч пока нет.</p>
+      <% end %>
+    </section>
+  </section>
+</main>

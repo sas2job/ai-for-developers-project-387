@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+npm run api:generate
+
+artifact_paths=(api/generated/openapi.yaml app/javascript/generated/src)
+
+if ! git diff --quiet HEAD -- "${artifact_paths[@]}"; then
+  echo "Generated API artifacts differ from the committed files." >&2
+  echo "Run npm run api:generate and commit the resulting artifacts." >&2
+  git diff --stat HEAD -- "${artifact_paths[@]}" >&2
+  exit 1
+fi
+
+untracked_artifacts=$(git ls-files --others -- "${artifact_paths[@]}")
+if [[ -n "$untracked_artifacts" ]]; then
+  echo "API generation created untracked artifacts:" >&2
+  printf '%s\n' "$untracked_artifacts" >&2
+  exit 1
+fi
