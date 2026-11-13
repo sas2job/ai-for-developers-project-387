@@ -21,6 +21,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "guest can select an event type and browse dates and available starts" do
+    travel_to Time.utc(2026, 11, 9, 6)
     event_type = EventType.create!(name: "Консультация", description: "Обсудить вопрос", duration_minutes: 30)
     date = Availability::Slots.window_dates.find { |candidate| !candidate.saturday? && !candidate.sunday? }
 
