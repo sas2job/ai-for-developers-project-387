@@ -11,7 +11,7 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
 
   web:
     build: .

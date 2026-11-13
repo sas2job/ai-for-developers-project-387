@@ -68,6 +68,8 @@ bin/dev       # сервер на http://localhost:3000 и сборка JavaScri
 bin/check     # RuboCop, Oxlint, oxfmt, проверка генерации API, сборка JavaScript, Rails- и браузерные тесты
 ```
 
+Для `bin/check` дополнительно нужны Java 17+ для генератора SDK и Google Chrome для системных тестов. В GitHub Actions проверки запускаются workflow [Check](.github/workflows/check.yml) с отдельной базой PostgreSQL.
+
 После изменения `api/main.tsp` запустите `npm run api:generate` и сохраните обновлённые OpenAPI и SDK. API поддерживает проверку состояния, типы встреч, поиск слотов, создание записи и список предстоящих встреч. Гость записывается через `/book`, владелец управляет типами и видит встречи на `/admin`.
 
 Docker-образ можно собрать и запустить так:
