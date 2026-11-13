@@ -28,7 +28,14 @@ class GuestBookingTest < ApplicationSystemTestCase
     visit book_path
     assert_text "Каталог типов встреч"
     click_link "Выбрать время", href: book_path(event_type_id: @event_type.id)
+    assert_text "Время по Москве (Europe/Moscow)"
+    another_date = @date + 1.day
+    click_link another_date.strftime("%d.%m"), href: book_path(event_type_id: @event_type.id, date: another_date.iso8601)
+    assert_selector "a[aria-current='date']", text: another_date.strftime("%d.%m")
+    assert_text "Время по Москве (Europe/Moscow)"
     click_link @date.strftime("%d.%m"), href: book_path(event_type_id: @event_type.id, date: @date.iso8601)
+    assert_selector "a[aria-current='date']", text: @date.strftime("%d.%m")
+    assert_text "Время по Москве (Europe/Moscow)"
     selected_slot = page.first("button[data-booking-target='slot']")
     selected_start = Time.iso8601(selected_slot["data-starts-at"])
     selected_slot.click
