@@ -91,13 +91,26 @@ export function createController({
         digest({ plan: record.plan, sourceDigest: record.sourceDigest }) === record.planDigest,
       "Approved source or plan changed",
     );
+    const artifacts = [record.artifacts?.spec, ...(record.artifacts?.tickets || [])];
+    requireValue(
+      artifacts.length === record.plan.tickets.length + 1 &&
+        artifacts.every((number) => Number.isSafeInteger(number) && number > 0),
+      "Issue is not an unchanged approved plan artifact",
+    );
     if (parent)
       requireValue(
-        parent.digest === record.planDigest &&
-          [record.artifacts?.spec, ...(record.artifacts?.tickets || [])].includes(target) &&
-          record.artifactDigests?.[target] === digest(source.body || ""),
+        parent.digest === record.planDigest && artifacts.includes(target),
         "Issue is not an unchanged approved plan artifact",
       );
+    for (const number of artifacts) {
+      const artifact = number === target ? source : await issue(number);
+      requireValue(
+        artifact &&
+          !artifact.pull_request &&
+          record.artifactDigests?.[number] === digest(artifact.body || ""),
+        "Issue is not an unchanged approved plan artifact",
+      );
+    }
     return {
       rootIssue: root,
       digest: record.planDigest,
@@ -552,6 +565,22 @@ export function createController({
       );
     }
     if (context.action === "fix") await currentPull(context);
+    const open = await pages(
+      `/pulls?state=open&head=${encodeURIComponent(`${settings.repository.split("/")[0]}:${context.branch}`)}`,
+    );
+    const matching = open.filter(
+      (item) =>
+        item.head?.ref === context.branch && item.head?.repo?.full_name === settings.repository,
+    );
+    requireValue(
+      matching.every(
+        (item) =>
+          item.base?.ref === repo.defaultBranch &&
+          item.base?.repo?.full_name === settings.repository,
+      ),
+      "Forks and non-default base branches are not allowed",
+    );
+    let pull = matching[0];
     requireValue(git?.publish, "A trusted git publisher is required");
     const change = await git.publish({
       repository: settings.repository,
@@ -564,13 +593,6 @@ export function createController({
       exists,
     });
     sha(change.headSha);
-    const open = await pages(
-      `/pulls?state=open&head=${encodeURIComponent(`${settings.repository.split("/")[0]}:${context.branch}`)}`,
-    );
-    let pull = open.find(
-      (item) =>
-        item.head?.ref === context.branch && item.head?.repo?.full_name === settings.repository,
-    );
     const body = `${originMarker(approval.rootIssue, approval.digest)}\n\nCloses #${issueNumber}\n\n${result.summary}\n\n### Risk\n\n${result.risk}\n\n### Validation reported by the task runner\n\n${result.tests}\n\nThe privileged publisher applied the text patch without running application code. CI must validate this head.`;
     if (!pull)
       pull = await request("POST", "/pulls", {

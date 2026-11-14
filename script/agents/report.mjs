@@ -114,7 +114,7 @@ export async function probeHealth({
         signal: controller.signal,
         headers: { Accept: "application/json" },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         await response.body?.cancel();
         result = finding(
           endpoint,

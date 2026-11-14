@@ -78,6 +78,19 @@ test("a healthy public health endpoint produces a clean report", async () => {
   assert.equal(requests[0].options.credentials, "omit");
 });
 
+test("only HTTP 200 can produce a healthy report", async () => {
+  for (const status of [201, 202, 206]) {
+    const report = await probeHealth({
+      url: endpoint,
+      observedAt,
+      fetchImpl: async () => Response.json({ status: "ok" }, { status }),
+    });
+    assert.equal(report.status, "degraded");
+    assert.equal(report.findings.length, 1);
+    assert.equal(report.findings[0].kind, "http_error");
+  }
+});
+
 test("invalid health URLs fail before making a request", async () => {
   let requests = 0;
   for (const url of [

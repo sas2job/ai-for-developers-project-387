@@ -222,6 +222,37 @@ test("approval creates linked issues once, and only unchanged approved artifacts
   await assert.rejects(controller.prepare(event), /unchanged approved plan artifact/);
 });
 
+test("implementation rejects changes to any artifact in the approved plan", async () => {
+  for (const target of [3, 11, 12]) {
+    for (const changed of [11, 13]) {
+      const { controller, event, issues } = fixture();
+      const planning = await controller.prepare(event);
+      const plan = await controller.publishPlan(planning, {
+        spec: { title: "Booking spec", body: "Guest books a call" },
+        tickets: [
+          { title: "Protect intervals", body: "Use database constraint", blockedBy: [] },
+          { title: "Booking form", body: "Submit booking", blockedBy: [0] },
+        ],
+      });
+      event.comment.body = `/agent approve ${plan.digest}`;
+      await controller.approve(await controller.prepare(event));
+      event.issue = issues.find((item) => item.number === target);
+      event.comment.body = "/agent implement";
+      const implementation = await controller.prepare(event);
+      issues.find((item) => item.number === changed).body += "\nChanged after approval";
+      await assert.rejects(controller.prepare(event), /unchanged approved plan artifact/);
+      await assert.rejects(
+        controller.publishChange(
+          implementation,
+          { summary: "Booking", risk: "Small", tests: "Tests pass" },
+          "diff --git a/app/booking.rb b/app/booking.rb\n--- a/app/booking.rb\n+++ b/app/booking.rb\n@@ -1 +1 @@\n-old\n+new\n",
+        ),
+        /unchanged approved plan artifact/,
+      );
+    }
+  }
+});
+
 test("review posts comments on current diff lines and refuses stale or off-diff findings", async () => {
   const f = fixture();
   f.issue.pull_request = { url: "pull" };
@@ -256,6 +287,48 @@ test("the local queue reserves a bounded run and explicitly says that no model h
   await f.controller.queue(context);
   context.runId = "18";
   await assert.rejects(f.controller.queue(context), /Target run budget exhausted/);
+});
+
+test("implementation refuses an existing PR to a different base before pushing code", async () => {
+  const f = fixture();
+  const plan = await f.controller.publishPlan(await f.controller.prepare(f.event), {
+    spec: { title: "Spec", body: "Booking" },
+    tickets: [{ title: "Task", body: "Booking code", blockedBy: [] }],
+  });
+  f.event.comment.body = `/agent approve ${plan.digest}`;
+  await f.controller.approve(await f.controller.prepare(f.event));
+  f.refs.set("agent/issue-3", "b".repeat(40));
+  f.pulls.push({
+    number: 30,
+    state: "open",
+    html_url: "https://github.com/owner/calendar/pull/30",
+    head: { sha: "b".repeat(40), ref: "agent/issue-3", repo: { full_name: "owner/calendar" } },
+    base: { ref: "release", repo: { full_name: "owner/calendar" } },
+  });
+  f.event.comment.body = "/agent implement";
+  const context = await f.controller.prepare(f.event);
+  let pushes = 0;
+  const controller = createController({
+    github: f.github,
+    env: f.env,
+    git: {
+      async publish() {
+        pushes += 1;
+        return { headSha: "c".repeat(40) };
+      },
+    },
+  });
+  const writesBefore = f.writes.length;
+  await assert.rejects(
+    controller.publishChange(
+      context,
+      { summary: "Booking", risk: "Small", tests: "Tests pass" },
+      "diff --git a/app/booking.rb b/app/booking.rb\n--- a/app/booking.rb\n+++ b/app/booking.rb\n@@ -1 +1 @@\n-old\n+new\n",
+    ),
+    /non-default base/,
+  );
+  assert.equal(pushes, 0);
+  assert.equal(f.writes.length, writesBefore);
 });
 
 test("fixes update the existing approved branch and reuse its pull request", async () => {
