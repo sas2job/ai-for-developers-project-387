@@ -46,7 +46,7 @@ jobs:
     # are restricted to controlled issue branches in this repository.
     if: >-
       vars.AGENT_ENABLED != 'false' &&
-      (github.event_name != 'pull_request' ||
+      (!contains(fromJSON('["pull_request","pull_request_review","pull_request_review_comment"]'), github.event_name) ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
       startsWith(github.event.pull_request.head.ref, 'agent/issue-')))
     runs-on: ubuntu-24.04
