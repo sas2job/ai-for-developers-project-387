@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
-    "lint": "oxlint app/javascript/application.js app/javascript/controllers --deny-warnings",
-    "format": "oxfmt --write app/javascript",
-    "format:check": "oxfmt --check app/javascript",
+    "lint": "oxlint app/javascript/application.js app/javascript/controllers script/agents test/agents --deny-warnings",
+    "format": "oxfmt --write app/javascript script/agents test/agents",
+    "format:check": "oxfmt --check app/javascript script/agents test/agents",
+    "test:agents": "node --test test/agents/*.test.mjs",
     "api:compile": "tsp compile api",
     "api:client": "openapi-generator-cli generate -i api/generated/openapi.yaml -g javascript -o app/javascript/generated --additional-properties=useES6=true --global-property=apiDocs=false,modelDocs=false,apiTests=false,modelTests=false",
     "api:generate": "npm run api:compile && npm run api:client && oxfmt --write app/javascript/generated/src"

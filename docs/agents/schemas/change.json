@@ -1,0 +1,1 @@
+{"type":"object","additionalProperties":false,"required":["summary","risk","tests"],"properties":{"summary":{"type":"string"},"risk":{"type":"string"},"tests":{"type":"string"}}}
