@@ -9,6 +9,20 @@
 Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
 Как это должно работать: https://files.hexlet.app/a/2ipc5m
 
+## Разработка через GitHub
+
+Процесс: обращение → предложение спецификации и тикетов → подтверждение человеком → реализация → PR → независимое ревью → исправления в той же ветке → решение человека о мерже.
+
+Actions готовит задания по командам `/agent plan`, `/agent approve SHA256`, `/agent implement`, `/agent review` и `/agent fix`. Агент выполняет задание локально; проверенный результат переносится в GitHub отдельным publisher. Регулярный аудит health endpoint работает по расписанию и создаёт issues только по новым находкам. Права, инициаторы, число запусков и таймауты ограничены.
+
+Команды, ручные согласования, формат артефактов, ограничения выбранного режима и порядок активации описаны в [инструкции процесса](docs/agents/github-automation.md). Зафиксированные версии скиллов находятся в [docs/agents/skills](docs/agents/skills/source.json). Проверки обработчиков запускаются через `npm run test:agents` и включены в `bin/check`.
+
+Демонстрационная доработка: [обращение #4](https://github.com/sas2job/ai-for-developers-project-387/issues/4) → [спецификация #5](https://github.com/sas2job/ai-for-developers-project-387/issues/5) → [тикет #6](https://github.com/sas2job/ai-for-developers-project-387/issues/6) → [PR #7](https://github.com/sas2job/ai-for-developers-project-387/pull/7). Человек согласовал план и HTTP-/браузерные проверки. [Независимое ревью Standards / Spec](https://github.com/sas2job/ai-for-developers-project-387/pull/7#pullrequestreview-5906445227) не нашло замечаний; [CI](https://github.com/sas2job/ai-for-developers-project-387/pull/7/checks) прошёл. Полный `bin/check`: 32 Rails-теста и 5 браузерных тестов, без ошибок.
+
+Инфраструктура процесса — [PR #8](https://github.com/sas2job/ai-for-developers-project-387/pull/8). [Первичное независимое ревью](https://github.com/sas2job/ai-for-developers-project-387/pull/8#pullrequestreview-5906493667) выявило три дефекта; исправления и регрессионные тесты находятся в той же ветке. Полный `bin/check`: 47 тестов автоматизации, 32 Rails-теста и 5 браузерных тестов; [результаты CI](https://github.com/sas2job/ai-for-developers-project-387/pull/8/checks). Production-образ проверен через Compose с PostgreSQL 18: health и страницы `/`, `/admin`, `/book` вернули HTTP 200. Согласование и модельные стадии демонстрации выполнены локально; issue-команды и расписание активируются после мержа инфраструктуры человеком.
+
+Реальная проверка публичного health endpoint 14 ноября выявила сбой TLS до получения сертификата; находка сохранена в [задаче аудита #9](https://github.com/sas2job/ai-for-developers-project-387/issues/9) с меткой `needs-triage` и fingerprint для дедупликации. Это отдельный сбой публичного развёртывания; локальная production-проверка прошла.
+
 ## Как открыть приложение
 
 Адрес предыдущего проекта: https://ai-hexlet.duckdns.org. При проверке 13 ноября 2026 года HTTPS-соединение завершилось ошибкой TLS. Для проверки приложения наставником запустите локальную копию; нужны Git, Docker с Compose и OpenSSL:

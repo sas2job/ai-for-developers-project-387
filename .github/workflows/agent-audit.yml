@@ -1,0 +1,71 @@
+name: Application audit
+
+on:
+  schedule:
+    - cron: '17 6 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Create issues for new findings
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: application-audit-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      (github.event_name == 'schedule' || github.actor == github.repository_owner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Collect the bounded application health report
+        env:
+          AGENT_HEALTH_URL: ${{ vars.AGENT_HEALTH_URL || 'https://ai-hexlet.duckdns.org/api/health' }}
+        run: node script/agents/report.mjs --url "$AGENT_HEALTH_URL" --output "$RUNNER_TEMP/health-report.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: application-health-report
+          path: ${{ runner.temp }}/health-report.json
+          retention-days: 7
+          if-no-files-found: error
+
+  findings:
+    needs: report
+    if: github.event_name == 'schedule' || inputs.publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: application-health-report
+          path: ${{ runner.temp }}/audit/
+      - name: Create only new finding issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT_ENABLED: ${{ vars.AGENT_ENABLED || 'true' }}
+        run: node script/agents/audit.mjs --report "$RUNNER_TEMP/audit/health-report.json"
