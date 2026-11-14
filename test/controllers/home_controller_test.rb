@@ -29,6 +29,7 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", "Консультация"
+    assert_select "p", text: "Время по Москве (Europe/Moscow)", count: 1
     assert_select ".calendar-days__link", count: 14
     assert_select ".available-slots li", minimum: 1
     assert_select "button[data-action='booking#selectSlot']", minimum: 1

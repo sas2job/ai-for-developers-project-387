@@ -12,6 +12,7 @@
         <p class="event-type-card__duration"><%= @selected_event_type.duration_minutes %> мин.</p>
 
         <h2 class="catalog__section-title">Выберите дату</h2>
+        <p>Время по Москве (<%= Availability::Slots::TIME_ZONE %>)</p>
         <nav class="calendar-days" aria-label="Даты в ближайшие 14 дней">
           <% @dates.each do |date| %>
             <%= link_to book_path(event_type_id: @selected_event_type.id, date: date.iso8601),
