@@ -21,11 +21,13 @@ Actions готовит задания по командам `/agent plan`, `/age
 
 Инфраструктура процесса — [PR #8](https://github.com/sas2job/ai-for-developers-project-387/pull/8). [Первичное независимое ревью](https://github.com/sas2job/ai-for-developers-project-387/pull/8#pullrequestreview-5906493667) выявило три дефекта; исправления и регрессионные тесты находятся в той же ветке. Полный `bin/check`: 47 тестов автоматизации, 32 Rails-теста и 5 браузерных тестов; [результаты CI](https://github.com/sas2job/ai-for-developers-project-387/pull/8/checks). Production-образ проверен через Compose с PostgreSQL 18: health и страницы `/`, `/admin`, `/book` вернули HTTP 200. Согласование и модельные стадии демонстрации выполнены локально; issue-команды и расписание активируются после мержа инфраструктуры человеком.
 
-Реальная проверка публичного health endpoint 14 ноября выявила сбой TLS до получения сертификата; находка сохранена в [задаче аудита #9](https://github.com/sas2job/ai-for-developers-project-387/issues/9) с меткой `needs-triage` и fingerprint для дедупликации. Это отдельный сбой публичного развёртывания; локальная production-проверка прошла.
+Реальная проверка публичного health endpoint выявила отсутствующий маршрут домена в Caddy; исправление описано в [задаче аудита #9](https://github.com/sas2job/ai-for-developers-project-387/issues/9). После восстановления постоянной конфигурации HTTPS health вернул HTTP 200 и `{"status":"ok"}`, аудит — `healthy` без находок. Существующий сертификат действителен до 29 января 2027 года.
 
 ## Как открыть приложение
 
-Адрес предыдущего проекта: https://ai-hexlet.duckdns.org. При проверке 13 ноября 2026 года HTTPS-соединение завершилось ошибкой TLS. Для проверки приложения наставником запустите локальную копию; нужны Git, Docker с Compose и OpenSSL:
+Публичная версия: https://ai-hexlet.duckdns.org. Доступность проверяется через [health endpoint](https://ai-hexlet.duckdns.org/api/health).
+
+Для локального запуска нужны Git, Docker с Compose и OpenSSL:
 
 ```bash
 git clone https://github.com/sas2job/ai-for-developers-project-387.git
