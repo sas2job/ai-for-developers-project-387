@@ -34,7 +34,7 @@ function fixture(overrides = {}) {
       requests.push({ method, path });
       assert.equal(method, "GET");
       if (path.includes("/collaborators/")) return { permission: data.permission };
-      if (/\/(?:issues|pulls)\/comments\/7$/.test(path)) return data.comment;
+      if (path.endsWith(`/comments/${data.comment.id}`)) return data.comment;
       if (path.endsWith("/issues/3")) return data.issue;
       if (path.endsWith("/pulls/3")) return data.pull;
       if (path.includes("/actions/workflows/")) return { workflow_runs: data.runs };
@@ -56,6 +56,31 @@ test("an allowed human can invoke the free model without any write API calls", a
   const f = fixture();
   assert.deepEqual(await f.run(), { allowed: "true", model: "opencode/glm-5.3-flash-free" });
   assert.ok(f.requests.some(({ path }) => path.includes("created=%3E%3D2026-11-15")));
+});
+
+test("real GitHub comment IDs above one billion remain valid", async () => {
+  const f = fixture();
+  f.event.comment.id = f.data.comment.id = 6_898_116_528;
+  assert.equal((await f.run()).allowed, "true");
+  assert.ok(f.requests.some(({ path }) => path.endsWith("/comments/6898116528")));
+});
+
+test("budget scans accept actual GitHub workflow run IDs above ten billion", async () => {
+  const f = fixture();
+  f.data.runs = [
+    { id: 43_739_168_821, actor: { login: "owner" }, display_title: "OpenCode #9 by owner" },
+  ];
+  assert.equal((await f.run()).allowed, "true");
+  assert.ok(f.requests.some(({ path }) => path.includes("/runs/43739168821/artifacts")));
+});
+
+test("invalid or unsafe GitHub comment IDs are rejected before looking up a comment", async () => {
+  for (const id of [0, -1, 1.5, "01", "1e10", Number.MAX_SAFE_INTEGER + 1, "9007199254740993"]) {
+    const f = fixture();
+    f.event.comment.id = id;
+    await assert.rejects(f.run(), /Invalid comment/);
+    assert.ok(!f.requests.some(({ path }) => path.includes("/comments/")));
+  }
 });
 
 test("the backup model is selectable, and paid or injected model names are refused", async () => {
