@@ -3,6 +3,7 @@
 # Ignore git directory.
 /.git/
 /.gitignore
+/WORK_STATUS.md
 
 # Ignore bundler config.
 /.bundle

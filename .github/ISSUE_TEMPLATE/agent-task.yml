@@ -1,0 +1,21 @@
+name: Доработка приложения
+description: Обращение для разбора и согласования плана
+labels: [needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что мешает пользователю
+      description: Опишите наблюдаемое поведение и ожидаемый результат.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Как воспроизвести
+      description: Шаги, ссылка на экран и пример данных без личной информации.
+  - type: textarea
+    id: limits
+    attributes:
+      label: Ограничения и риски
+      description: Что требуется сохранить и что не входит в задачу.

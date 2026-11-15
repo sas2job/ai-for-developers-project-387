@@ -4,6 +4,7 @@ set -euo pipefail
 bin/rubocop
 npm run lint
 npm run format:check
+npm run test:agents
 bin/verify-api-generated
 npm run build
 bin/rails test

@@ -1,0 +1,144 @@
+name: Agent tasks
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Agent stage
+        required: true
+        type: choice
+        options: [plan, approve, implement, review, fix]
+      target:
+        description: Issue or pull request number
+        required: true
+        type: string
+      approval_digest:
+        description: Full approved plan SHA-256 (approve only)
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: agent-tasks-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  AGENT_ENABLED: ${{ vars.AGENT_ENABLED || 'true' }}
+  AGENT_ALLOWED_ACTORS: ${{ vars.AGENT_ALLOWED_ACTORS || github.repository_owner }}
+  AGENT_MAX_DAILY_RUNS: ${{ vars.AGENT_MAX_DAILY_RUNS || '10' }}
+  AGENT_MAX_TARGET_RUNS: ${{ vars.AGENT_MAX_TARGET_RUNS || '6' }}
+  AGENT_WORKFLOW_FILE: agents.yml
+  AGENT_API_ENABLED: 'false'
+
+jobs:
+  prepare:
+    # The initial infrastructure PR is reviewed separately. Automatic PR tasks
+    # are restricted to controlled issue branches in this repository.
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      (!contains(fromJSON('["pull_request","pull_request_review","pull_request_review_comment"]'), github.event_name) ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'agent/issue-')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      actions: read
+    outputs:
+      allowed: ${{ steps.task.outputs.allowed }}
+      action: ${{ steps.task.outputs.action }}
+      target: ${{ steps.task.outputs.target }}
+      context_sha256: ${{ steps.task.outputs.context_sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - id: task
+        name: Authorize request and collect task data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node script/agents/cli.mjs prepare
+      - name: Package trusted instructions and checksum
+        if: steps.task.outputs.allowed == 'true'
+        env:
+          TASK_ACTION: ${{ steps.task.outputs.action }}
+          CONTEXT_SHA256: ${{ steps.task.outputs.context_sha256 }}
+        run: node script/agents/package-task.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.task.outputs.allowed == 'true'
+        with:
+          name: agent-task
+          path: ${{ runner.temp }}/agent-task/
+          retention-days: 7
+          if-no-files-found: error
+
+  queue:
+    needs: prepare
+    if: needs.prepare.outputs.allowed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    env:
+      AGENT_CONTEXT_SHA256: ${{ needs.prepare.outputs.context_sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: agent-task
+          path: ${{ runner.temp }}/agent-task/
+      - name: Record the bounded local task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node script/agents/cli.mjs queue --context "$RUNNER_TEMP/agent-task/context.json"
+
+  approve:
+    needs: [prepare, queue]
+    if: needs.prepare.outputs.action == 'approve'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    env:
+      AGENT_CONTEXT_SHA256: ${{ needs.prepare.outputs.context_sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: agent-task
+          path: ${{ runner.temp }}/agent-task/
+      - name: Publish the exact human-approved specification and tickets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node script/agents/cli.mjs approve --context "$RUNNER_TEMP/agent-task/context.json"

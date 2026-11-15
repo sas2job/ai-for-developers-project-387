@@ -1,0 +1,41 @@
+{
+  "repository": "https://github.com/mattpocock/skills",
+  "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+  "skills": [
+    {
+      "name": "to-spec",
+      "sourcePath": "skills/engineering/to-spec",
+      "tree": "136b9651747cfccbfbb7c50a6b0dfb757e7547d2"
+    },
+    {
+      "name": "to-tickets",
+      "sourcePath": "skills/engineering/to-tickets",
+      "tree": "2dee20ad722a31c04ededf9f2d83842473573045"
+    },
+    {
+      "name": "implement-spec",
+      "sourcePath": "skills/engineering/implement-spec",
+      "tree": "407c196f5c88af53c71efc8f31ee37c02dbb12e7"
+    },
+    {
+      "name": "code-review",
+      "sourcePath": "skills/engineering/code-review",
+      "tree": "a8ef561571acbb611de8ff19ba6da75b197c63a8"
+    },
+    {
+      "name": "tdd",
+      "sourcePath": "skills/engineering/tdd",
+      "tree": "667dbdd00c09d0e2189e082986e6a4d61a67c2a6"
+    },
+    {
+      "name": "codebase-design",
+      "sourcePath": "skills/engineering/codebase-design",
+      "tree": "4cbe1c131e1ea54109cb1e4e5f3c505810db6606"
+    },
+    {
+      "name": "writing-for-agents",
+      "sourcePath": "skills/productivity/writing-for-agents",
+      "tree": "ad2925850efb8973a72d2e666f7a975f9a2d4a9b"
+    }
+  ]
+}
