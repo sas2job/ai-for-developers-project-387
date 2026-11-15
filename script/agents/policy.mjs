@@ -34,8 +34,12 @@ export function boundedText(value, label, max = LIMITS.body) {
   return value;
 }
 export function positiveInteger(value, label = "target") {
-  requireValue(/^[1-9]\d{0,8}$/.test(String(value)), `Invalid ${label}`);
-  return Number(value);
+  const parsed = Number(value);
+  requireValue(
+    /^[1-9]\d{0,15}$/.test(String(value)) && Number.isSafeInteger(parsed),
+    `Invalid ${label}`,
+  );
+  return parsed;
 }
 export function sha(value) {
   requireValue(/^[a-f0-9]{40}$/.test(value), "Invalid commit SHA");
