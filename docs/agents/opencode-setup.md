@@ -13,17 +13,25 @@ Workflow [OpenCode](../../.github/workflows/opencode.yml) вызывает мо�
 
 ## Настройка владельцем
 
-1. В [OpenCode Console](https://opencode.ai/console) создайте API key workspace,
-   где включены выбранные бесплатные модели.
-2. Сохраните ключ в repository secret `OPENCODE_API_KEY`:
+1. В [OpenCode Console](https://opencode.ai/console) откройте **Settings → Service
+   accounts**. Для аккаунта проекта выберите вход **GitHub Actions**, репозиторий
+   `sas2job/ai-for-developers-project-387`, **Runs from → Environment → opencode**.
+   Права аккаунта: **Models · Request**. Выбранные бесплатные модели должны быть
+   включены в workspace.
+2. Создайте GitHub environment и сохраните выданный Console `client_id` в
+   repository variable `OPENCODE_CLIENT_ID`:
 
    ```bash
-   gh secret set OPENCODE_API_KEY --repo sas2job/ai-for-developers-project-387
+   gh api --method PUT repos/sas2job/ai-for-developers-project-387/environments/opencode
+   gh variable set OPENCODE_CLIENT_ID --body ВАШ_CLIENT_ID --repo sas2job/ai-for-developers-project-387
    ```
 
-   GitHub CLI запросит значение скрытым вводом. Ключ не помещают в код или комментарии.
+   `client_id` — публичный идентификатор аккаунта, а не секрет. Привязка Console
+   проверяет GitHub repository и environment из подписанного OIDC-токена.
+   Environment позволяет использовать и обсуждения issue/PR, и комментарии к
+   строкам PR, у которых GitHub ref отличается от `main`.
 3. Проверьте и смержите инфраструктурный PR. Обработчики комментариев GitHub берёт
-   из default branch; до мержа новая команда `/oc` не активна.
+   из default branch; обновлённая авторизация активируется после мержа.
 4. В открытом issue напишите `/oc Прочитай AGENTS.md и объясни, как запустить проверки.
    Исходники менять не требуется.` Дождитесь ответа и завершения workflow
    [OpenCode](https://github.com/sas2job/ai-for-developers-project-387/actions/workflows/opencode.yml).
@@ -43,14 +51,21 @@ Workflow допускает только эти два идентификато�
 
 ## Авторизация и ограничения
 
-Выбран режим CLI `opencode github run` с `USE_GITHUB_TOKEN=true`: установка
-GitHub App, PAT и OIDC не требуются. Это эквивалентная интеграция через GitHub
-Actions с авторизацией repository `GITHUB_TOKEN`. В настройках Actions должно
-быть разрешено создание pull requests. Версия CLI `1.19.5` и SHA-256 архива
+Для операций с репозиторием CLI `opencode github run` использует
+`USE_GITHUB_TOKEN=true` и repository `GITHUB_TOKEN`. Установка GitHub App и PAT
+не требуются. Для обращения к моделям отдельный шаг получает GitHub OIDC JWT с
+audience `https://opencode.ai/console` и обменивает его в Console на временный
+access token. Этот токен передаётся CLI как `OPENCODE_API_KEY` через `GITHUB_ENV`;
+постоянный repository secret не нужен. Оба токена маскируются в логах; ошибки
+не включают ответы сервера и значения credentials. Запросы ограничены таймаутом,
+размером ответа и доверенными HTTPS endpoints; redirects запрещены.
+
+В настройках Actions должно быть разрешено создание pull requests.
+Версия CLI `1.19.5` и SHA-256 архива
 закреплены в workflow. Старый composite action удалён из основной ветки OpenCode;
 его плавающий тег здесь не используется.
 
-Проверка до передачи ключа модели требует нового комментария, разрешённого
+Проверка до получения токена модели требует нового комментария, разрешённого
 человека с правом `write`, неизменённого текста команды и открытого issue/PR.
 PR из fork и повторный запуск через Re-run запрещены. Для нового запроса нужен
 новый комментарий. Общие настройки инициаторов, выключателя и лимитов описаны
@@ -64,7 +79,8 @@ PR из fork и повторный запуск через Re-run запреще
 повторяют после завершения текущего. Таймаут проверки — 5 минут, модели — 20 минут.
 
 Проверяющая job имеет только чтение. Job модели получает `contents: write`,
-`issues: write`, `pull-requests: write` и только ключ OpenCode. Ruby, JavaScript
+`issues: write`, `pull-requests: write` и `id-token: write`. Только она входит в
+environment `opencode` и обменивает OIDC-токен на доступ к моделям. Ruby, JavaScript
 и отдельная тестовая PostgreSQL подготовлены для выполнения `bin/check`.
 Публикация сессий отключена; вспомогательные запросы также используют бесплатную
 модель. Другие секреты приложения workflow не передаёт.
