@@ -69,6 +69,7 @@ export function config(env) {
     mode: env.AGENT_API_ENABLED === "true" ? "api" : "local",
     dailyRuns: limit("AGENT_MAX_DAILY_RUNS", 10),
     targetRuns: limit("AGENT_MAX_TARGET_RUNS", 6),
+    prRuns: limit("AGENT_MAX_PR_RUNS", 3),
     workflow: env.AGENT_WORKFLOW_FILE || "agents.yml",
   };
 }

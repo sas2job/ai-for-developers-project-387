@@ -29,6 +29,16 @@ Actions готовит задания по командам `/agent plan`, `/age
 готовые тикеты исключаются из автотриажа по меткам. Итоговый комментарий остаётся
 в issue, журнал запуска доступен в [OpenCode Actions](https://github.com/sas2job/ai-for-developers-project-387/actions/workflows/opencode.yml).
 
+Авторевью запускается при открытии и обновлении PR из этого репозитория. Независимый
+OpenCode CLI читает критерии календаря, согласованные Issues, diff и статусы CI
+для head SHA. Публикующий job добавляет комментарий актуальной версии PR. Человек
+запускает исправление через `/oc` в обсуждении или в строке diff. По умолчанию
+для одного PR доступны три запроса. [Критерии](REVIEW.md) · [Шаблон PR](.github/pull_request_template.md) · [Воркфлоу](.github/workflows/pr-review.yml)
+
+Check запускает `bin/check` из точного head PR. В артефакте `browser-evidence-<SHA>`
+есть снимки браузера, журнал, результат и фактический SHA. Перед мержем человек
+сверяет SHA артефакта со свежим head PR и проверяет результат ревью.
+
 Команды, ручные согласования, формат артефактов, ограничения выбранного режима и порядок активации описаны в [инструкции процесса](docs/agents/github-automation.md). Зафиксированные версии скиллов находятся в [docs/agents/skills](docs/agents/skills/source.json). Проверки обработчиков запускаются через `npm run test:agents` и включены в `bin/check`.
 
 Демонстрационная доработка: [обращение #4](https://github.com/sas2job/ai-for-developers-project-387/issues/4) → [спецификация #5](https://github.com/sas2job/ai-for-developers-project-387/issues/5) → [тикет #6](https://github.com/sas2job/ai-for-developers-project-387/issues/6) → [PR #7](https://github.com/sas2job/ai-for-developers-project-387/pull/7). Человек согласовал план и HTTP-/браузерные проверки. [Независимое ревью Standards / Spec](https://github.com/sas2job/ai-for-developers-project-387/pull/7#pullrequestreview-5906445227) не нашло замечаний; [CI](https://github.com/sas2job/ai-for-developers-project-387/pull/7/checks) прошёл. Полный `bin/check`: 32 Rails-теста и 5 браузерных тестов, без ошибок.
