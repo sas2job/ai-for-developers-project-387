@@ -61,8 +61,9 @@ access token. Этот токен передаётся CLI как `OPENCODE_API_
 размером ответа и доверенными HTTPS endpoints; redirects запрещены.
 
 В настройках Actions должно быть разрешено создание pull requests.
-Версия CLI `1.19.5` и SHA-256 архива
-закреплены в workflow. Старый composite action удалён из основной ветки OpenCode;
+Версия CLI `1.19.5` и SHA-256 архива закреплены в
+[локальном action установки](../../.github/actions/install-opencode/action.yml).
+Каталог проектных скиллов задан в `opencode.json`. Старый composite action удалён из основной ветки OpenCode;
 его плавающий тег здесь не используется.
 
 Проверка до получения токена модели требует нового комментария, разрешённого

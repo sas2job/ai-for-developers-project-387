@@ -4,5 +4,6 @@
   "small_model": "opencode/glm-5.3-flash-free",
   "share": "disabled",
   "enabled_providers": ["opencode"],
+  "skills": { "paths": ["docs/agents/skills"] },
   "instructions": ["docs/agents/opencode.md"]
 }

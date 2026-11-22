@@ -24,4 +24,4 @@ Edit the "Label in our tracker" column to match whatever vocabulary you actually
 | `ready-for-agent` | Approved task available to an agent |
 | `agent:audit` | Finding from a regular application health report |
 
-The configured maintainer chooses audit findings labelled `needs-triage`. A plan label alone does not approve its implementation. See [the GitHub workflow](github-automation.md).
+The configured maintainer chooses audit findings labelled `needs-triage`. A plan label alone does not approve its implementation. OpenCode skips new issues labelled `ready-for-agent`, `agent:spec` or `agent:ticket`. See [the GitHub workflow](github-automation.md).
