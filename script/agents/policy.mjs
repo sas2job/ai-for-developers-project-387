@@ -14,9 +14,11 @@ export const digest = (value) =>
     .update(typeof value === "string" ? value : canonical(value))
     .digest("hex");
 export function canonical(value) {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (Array.isArray(value))
+    return `[${Array.from(value, (item) => canonical(item) ?? "null").join(",")}]`;
   if (value && typeof value === "object")
     return `{${Object.keys(value)
+      .filter((key) => value[key] !== undefined)
       .sort()
       .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
       .join(",")}}`;
@@ -67,6 +69,7 @@ export function config(env) {
     mode: env.AGENT_API_ENABLED === "true" ? "api" : "local",
     dailyRuns: limit("AGENT_MAX_DAILY_RUNS", 10),
     targetRuns: limit("AGENT_MAX_TARGET_RUNS", 6),
+    prRuns: limit("AGENT_MAX_PR_RUNS", 3),
     workflow: env.AGENT_WORKFLOW_FILE || "agents.yml",
   };
 }

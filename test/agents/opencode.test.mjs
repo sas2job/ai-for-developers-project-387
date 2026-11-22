@@ -26,6 +26,7 @@ function fixture(overrides = {}) {
       base: { repo: { full_name: env.GITHUB_REPOSITORY } },
     },
     runs: [],
+    jobs: [],
     artifacts: [{ name: "opencode-request" }],
   };
   const requests = [];
@@ -38,6 +39,7 @@ function fixture(overrides = {}) {
       if (path.endsWith("/issues/3")) return data.issue;
       if (path.endsWith("/pulls/3")) return data.pull;
       if (path.includes("/actions/workflows/")) return { workflow_runs: data.runs };
+      if (path.includes("/jobs?")) return { jobs: data.jobs };
       if (path.includes("/artifacts?")) return { artifacts: data.artifacts };
       throw new Error(`Unexpected request: ${path}`);
     },
@@ -258,4 +260,28 @@ test("an unbounded history fails closed rather than bypassing quotas", async () 
   const f = fixture();
   f.data.runs = Array.from({ length: 100 }, () => ({ id: 20, actor: { login: "outsider" } }));
   await assert.rejects(f.run(), /pagination limit/);
+});
+
+test("PR budget spans days and counts reruns of a reserved request without using comments", async () => {
+  const f = fixture({ AGENT_MAX_PR_RUNS: "3" });
+  f.data.issue.pull_request = {};
+  f.data.runs = [
+    {
+      id: 20,
+      run_attempt: 3,
+      display_title: "OpenCode #3 by owner",
+      created_at: "2026-11-12T12:00:00Z",
+    },
+    { id: 21, run_attempt: 20, display_title: "OpenCode #8 by owner" },
+  ];
+  f.data.jobs = [
+    {
+      name: "Authorize request",
+      steps: [{ name: "Reserve the authorized attempt", conclusion: "success" }],
+    },
+  ];
+  await assert.rejects(f.run(), /Pull request run budget exhausted/);
+  assert(f.requests.some(({ path }) => path.includes("/runs/20/jobs?filter=all")));
+  assert(!f.requests.some(({ path }) => path.includes("/runs/21/jobs")));
+  assert(!f.requests.some(({ path }) => path.includes("created=")));
 });

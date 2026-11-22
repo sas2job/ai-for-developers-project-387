@@ -4,19 +4,20 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { packageTask } from "../../script/agents/package-task.mjs";
-import { digest } from "../../script/agents/policy.mjs";
+import { canonical, digest, parseCommand } from "../../script/agents/policy.mjs";
 
 async function fixture(t, action = "plan") {
   const taskDir = await mkdtemp(join(tmpdir(), "agent-package-"));
   t.after(() => rm(taskDir, { recursive: true, force: true }));
-  const body = JSON.stringify({ action, body: "untrusted issue contents" });
-  await writeFile(join(taskDir, "context.json"), body);
+  const command = parseCommand("/agent " + action, action === "review");
+  const context = { ...command, body: "untrusted issue contents" };
+  await writeFile(join(taskDir, "context.json"), canonical(context));
   await writeFile(join(taskDir, "prompt.md"), "Trusted preparation instructions.\n");
   return {
     taskDir,
     root: resolve(import.meta.dirname, "../.."),
     action,
-    contextDigest: digest(body),
+    contextDigest: digest(context),
   };
 }
 

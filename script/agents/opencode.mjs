@@ -6,6 +6,43 @@ import { boundedText, config, LIMITS, positiveInteger, requireValue } from "./po
 
 const models = ["opencode/glm-5.3-flash-free", "opencode/deepseek-v4.1-flash-free"];
 
+class BudgetExhausted extends Error {
+  constructor(message, pr) {
+    super(message);
+    this.pr = pr;
+  }
+}
+
+async function checkPullBudget({ get, target, limit, runId }) {
+  let attempts = 0;
+  const runTitle = "OpenCode #" + target + " by ";
+  for (let page = 1; page <= LIMITS.pages; page += 1) {
+    const { workflow_runs: runs } = await get(
+      "/actions/workflows/opencode.yml/runs?per_page=100&page=" + page,
+    );
+    requireValue(Array.isArray(runs), "Invalid workflow history");
+    for (const run of runs) {
+      if (String(run.id) === String(runId) || !run.display_title?.startsWith(runTitle)) continue;
+      const { jobs } = await get(
+        "/actions/runs/" + positiveInteger(run.id, "run") + "/jobs?filter=all&per_page=100",
+      );
+      requireValue(Array.isArray(jobs) && jobs.length < 100, "Invalid workflow jobs");
+      const reserved = jobs.some(
+        (job) =>
+          job.name === "Authorize request" &&
+          job.steps?.some(
+            (step) =>
+              step.name === "Reserve the authorized attempt" && step.conclusion === "success",
+          ),
+      );
+      if (reserved) attempts += positiveInteger(run.run_attempt || 1, "run attempt");
+      if (attempts >= limit) throw new BudgetExhausted("Pull request run budget exhausted", target);
+    }
+    if (runs.length < 100) return;
+  }
+  throw new Error("Workflow history exceeds safe pagination limit");
+}
+
 export async function authorizeOpenCode({
   github,
   event,
@@ -59,9 +96,10 @@ export async function authorizeOpenCode({
   }
   const issue = await get(`/issues/${target}`);
   requireValue(issue.state === "open", "Target must be open");
+  const pr = Boolean(issue.pull_request || inline);
   if (triage) {
     requireValue(isIncomingIssue(issue, actor), "Issue is ineligible for triage");
-  } else if (issue.pull_request || inline) {
+  } else if (pr) {
     const pull = await get(`/pulls/${target}`);
     requireValue(
       pull.head?.repo?.full_name === settings.repository &&
@@ -70,6 +108,7 @@ export async function authorizeOpenCode({
     );
   }
 
+  if (pr) await checkPullBudget({ get, target, limit: settings.prRuns, runId: env.GITHUB_RUN_ID });
   const day = clock().toISOString().slice(0, 10);
   let daily = 0;
   let perTarget = 0;
@@ -95,9 +134,11 @@ export async function authorizeOpenCode({
       daily += attempts;
       if (run.display_title === `OpenCode #${target} by ${run.actor.login}`) perTarget += attempts;
     }
-    requireValue(daily < settings.dailyRuns, "Daily run budget exhausted");
-    requireValue(perTarget < settings.targetRuns, "Target run budget exhausted");
-    if (runs.length < 100) return { allowed: "true", model };
+    if (daily >= settings.dailyRuns)
+      throw new BudgetExhausted("Daily run budget exhausted", pr && target);
+    if (!pr && perTarget >= settings.targetRuns)
+      throw new BudgetExhausted("Target run budget exhausted");
+    if (runs.length < 100) return { allowed: "true", model, ...(pr ? { pr: target } : {}) };
   }
   throw new Error("Workflow history exceeds safe pagination limit");
 }
@@ -121,7 +162,10 @@ export async function main(env = process.env) {
     requireValue(Buffer.byteLength(raw) <= LIMITS.context, "Event exceeds safe size limit");
     output = await authorizeOpenCode({ github: createGitHub(), event: JSON.parse(raw), env });
   } catch (error) {
-    output = { allowed: "false" };
+    output =
+      error instanceof BudgetExhausted && error.pr
+        ? { allowed: "false", reason: "limit_exhausted", pr: error.pr }
+        : { allowed: "false" };
     process.stderr.write(
       `OpenCode request rejected: ${error instanceof SyntaxError ? "Invalid event JSON" : error.message}\n`,
     );

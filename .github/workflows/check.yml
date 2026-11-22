@@ -51,6 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: ruby/setup-ruby@v1
         with:
@@ -60,4 +61,30 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - run: bin/check
+      - name: Run bin/check
+        id: check
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          BROWSER_EVIDENCE_DIR: ${{ github.event_name == 'pull_request' && format('{0}/browser-evidence', runner.temp) || '' }}
+        run: |
+          if [[ -n "$BROWSER_EVIDENCE_DIR" ]]; then
+            mkdir -p "$BROWSER_EVIDENCE_DIR"
+            git rev-parse HEAD | tee "$BROWSER_EVIDENCE_DIR/head.txt"
+            test "$(cat "$BROWSER_EVIDENCE_DIR/head.txt")" = "$EXPECTED_SHA"
+            bin/check 2>&1 | tee "$BROWSER_EVIDENCE_DIR/check.log"
+          else
+            bin/check
+          fi
+      - name: Save verification result
+        if: always() && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') && github.event_name == 'pull_request'
+        env:
+          RESULT: ${{ steps.check.outcome }}
+        run: printf '%s\n' "$RESULT" > "$RUNNER_TEMP/browser-evidence/result.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') && github.event_name == 'pull_request'
+        with:
+          name: browser-evidence-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/browser-evidence/
+          retention-days: 14
+          if-no-files-found: error

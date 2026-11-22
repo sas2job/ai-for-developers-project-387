@@ -1,4 +1,5 @@
 /.bundle/
+/vendor/bundle/
 /.env*
 !/.env.vps.example
 /node_modules/
