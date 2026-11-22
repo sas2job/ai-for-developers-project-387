@@ -120,6 +120,21 @@ class AdminControllerTest < ActionDispatch::IntegrationTest
     assert_select ".admin-booking-list li", count: 1, text: /Гость второго типа/
   end
 
+  test "distinguishes a type name that matches another type's detailed filter label" do
+    first_type = EventType.create!(name: "Все типы", description: "Первый тип", duration_minutes: 30)
+    first_label = "Все типы (30 мин., №#{first_type.id})"
+    matching_type = EventType.create!(name: first_label, description: "Второй тип", duration_minutes: 45)
+
+    get admin_path, params: { event_type_id: matching_type.id }
+
+    assert_response :success
+    assert_select "select[name='event_type_id']" do
+      assert_select "option", text: first_label, count: 1
+      assert_select "option[value='#{first_type.id}']", first_label
+      assert_select "option[value='#{matching_type.id}'][selected]", "#{first_label} (45 мин., №#{matching_type.id})"
+    end
+  end
+
   test "shows all upcoming meetings when the requested type is invalid or missing" do
     first_type = EventType.create!(name: "Консультация", description: "Обсудить вопрос", duration_minutes: 30)
     second_type = EventType.create!(name: "Планирование", description: "Составить план", duration_minutes: 30)
