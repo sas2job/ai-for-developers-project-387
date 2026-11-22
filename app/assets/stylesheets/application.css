@@ -313,6 +313,20 @@ h1 {
   max-width: 560px;
 }
 
+.admin-booking-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-booking-filter .form-field {
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: 360px;
+}
+
 .form-field {
   display: grid;
   gap: 8px;
@@ -323,6 +337,7 @@ h1 {
 }
 
 .form-field input,
+.form-field select,
 .form-field textarea {
   width: 100%;
   padding: 11px 12px;
@@ -333,6 +348,7 @@ h1 {
 }
 
 .form-field input:focus,
+.form-field select:focus,
 .form-field textarea:focus {
   outline: 3px solid rgb(247 107 28 / 30%);
   border-color: #c45100;
