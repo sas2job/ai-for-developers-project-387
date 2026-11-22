@@ -158,6 +158,13 @@ class GuestBookingTest < ApplicationSystemTestCase
     click_button "Показать"
 
     assert_select_value "Все типы"
+    reset_url = page.current_url
+    reset_event_type_id = Rack::Utils.parse_query(URI.parse(reset_url).query)["event_type_id"]
+    assert reset_event_type_id.blank?, "URL после сброса не должен содержать выбранный тип: #{reset_url}"
+
+    visit reset_url
+
+    assert_select_value "Все типы"
     assert_text "Раньше"
     assert_text "Позже"
     assert_no_text "Прошедшая"
