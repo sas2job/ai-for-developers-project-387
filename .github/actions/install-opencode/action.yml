@@ -1,0 +1,17 @@
+name: Install pinned OpenCode CLI
+description: Install and verify the OpenCode binary used by GitHub Actions
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        OPENCODE_VERSION: 1.19.5
+        OPENCODE_SHA256: 588310a336fa3b9df36b3f0225b26f679d453efaad0cf3d66c3651ef3ec1647a
+      run: |
+        curl --fail --silent --show-error --location --retry 3 \
+          "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
+          --output "$RUNNER_TEMP/opencode.tar.gz"
+        printf '%s  %s\n' "$OPENCODE_SHA256" "$RUNNER_TEMP/opencode.tar.gz" | sha256sum --check -
+        mkdir -p "$RUNNER_TEMP/opencode-bin"
+        tar -xzf "$RUNNER_TEMP/opencode.tar.gz" -C "$RUNNER_TEMP/opencode-bin"
+        echo "$RUNNER_TEMP/opencode-bin" >> "$GITHUB_PATH"

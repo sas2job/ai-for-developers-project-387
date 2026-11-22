@@ -52,6 +52,54 @@ function fixture(overrides = {}) {
   };
 }
 
+function triageFixture(overrides = {}) {
+  const f = fixture({ GITHUB_EVENT_NAME: "issues", ...overrides });
+  f.event.action = "opened";
+  delete f.event.comment;
+  f.event.issue = { number: 3, user: f.event.sender, labels: [] };
+  f.data.issue = { ...structuredClone(f.event.issue), state: "open" };
+  return f;
+}
+
+test("opening an incoming issue authorizes triage with the existing model and run budget", async () => {
+  const f = triageFixture({ OPENCODE_MODEL: "opencode/deepseek-v4.1-flash-free" });
+  assert.deepEqual(await f.run(), { allowed: "true", model: f.env.OPENCODE_MODEL });
+  assert.ok(f.requests.some(({ path }) => path.endsWith("/issues/3")));
+  assert.ok(f.requests.some(({ path }) => path.includes("/actions/workflows/opencode.yml/runs")));
+  assert.ok(f.requests.every(({ path }) => !path.includes("/comments/")));
+});
+
+test("prepared issues skip triage even if the labels were added after opening", async () => {
+  for (const name of ["ready-for-agent", "agent:spec", "agent:ticket"]) {
+    const prepared = triageFixture();
+    prepared.event.issue.labels = [{ name }];
+    await assert.rejects(prepared.run(), /ineligible for triage/);
+    assert.deepEqual(prepared.requests, []);
+
+    const relabeled = triageFixture();
+    relabeled.data.issue.labels = [{ name }];
+    await assert.rejects(relabeled.run(), /ineligible for triage/);
+    assert.ok(relabeled.requests.every(({ path }) => !path.includes("/actions/")));
+  }
+});
+
+test("triage rejects reopened issues, bots, and authors without write access", async () => {
+  const reopened = triageFixture();
+  reopened.event.action = "reopened";
+  await assert.rejects(reopened.run(), /Invalid OpenCode event/);
+  assert.deepEqual(reopened.requests, []);
+
+  const bot = triageFixture();
+  bot.event.sender.type = "Bot";
+  await assert.rejects(bot.run(), /Invalid OpenCode event/);
+  assert.deepEqual(bot.requests, []);
+
+  const reader = triageFixture();
+  reader.data.permission = "read";
+  await assert.rejects(reader.run(), /Write permission required/);
+  assert.ok(reader.requests.every(({ path }) => path.includes("/collaborators/")));
+});
+
 test("an allowed human can invoke the free model without any write API calls", async () => {
   const f = fixture();
   assert.deepEqual(await f.run(), { allowed: "true", model: "opencode/glm-5.3-flash-free" });

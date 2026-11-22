@@ -24,6 +24,11 @@
 
 Actions готовит задания по командам `/agent plan`, `/agent approve SHA256`, `/agent implement`, `/agent review` и `/agent fix`. Агент выполняет задание локально; проверенный результат переносится в GitHub отдельным publisher. Регулярный аудит health endpoint работает по расписанию и создаёт issues только по новым находкам. Права, инициаторы, число запусков и таймауты ограничены.
 
+При открытии нового issue доверенным участником OpenCode сверяет обращение с кодом,
+задаёт уточняющие вопросы и предлагает следующий шаг в комментарии. Спецификации и
+готовые тикеты исключаются из автотриажа по меткам. Итоговый комментарий остаётся
+в issue, журнал запуска доступен в [OpenCode Actions](https://github.com/sas2job/ai-for-developers-project-387/actions/workflows/opencode.yml).
+
 Команды, ручные согласования, формат артефактов, ограничения выбранного режима и порядок активации описаны в [инструкции процесса](docs/agents/github-automation.md). Зафиксированные версии скиллов находятся в [docs/agents/skills](docs/agents/skills/source.json). Проверки обработчиков запускаются через `npm run test:agents` и включены в `bin/check`.
 
 Демонстрационная доработка: [обращение #4](https://github.com/sas2job/ai-for-developers-project-387/issues/4) → [спецификация #5](https://github.com/sas2job/ai-for-developers-project-387/issues/5) → [тикет #6](https://github.com/sas2job/ai-for-developers-project-387/issues/6) → [PR #7](https://github.com/sas2job/ai-for-developers-project-387/pull/7). Человек согласовал план и HTTP-/браузерные проверки. [Независимое ревью Standards / Spec](https://github.com/sas2job/ai-for-developers-project-387/pull/7#pullrequestreview-5906445227) не нашло замечаний; [CI](https://github.com/sas2job/ai-for-developers-project-387/pull/7/checks) прошёл. Полный `bin/check`: 32 Rails-теста и 5 браузерных тестов, без ошибок.
