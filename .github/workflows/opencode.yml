@@ -20,6 +20,7 @@ env:
   AGENT_ALLOWED_ACTORS: ${{ vars.AGENT_ALLOWED_ACTORS || github.repository_owner }}
   AGENT_MAX_DAILY_RUNS: ${{ vars.AGENT_MAX_DAILY_RUNS || '10' }}
   AGENT_MAX_TARGET_RUNS: ${{ vars.AGENT_MAX_TARGET_RUNS || '6' }}
+  AGENT_MAX_PR_RUNS: ${{ vars.AGENT_MAX_PR_RUNS || '3' }}
   OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/glm-5.3-flash-free' }}
 
 jobs:
@@ -44,6 +45,8 @@ jobs:
     outputs:
       allowed: ${{ steps.authorize.outputs.allowed }}
       model: ${{ steps.authorize.outputs.model }}
+      pr: ${{ steps.authorize.outputs.pr }}
+      reason: ${{ steps.authorize.outputs.reason }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -74,6 +77,8 @@ jobs:
     if: github.event_name != 'issues' && needs.authorize.outputs.allowed == 'true' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      reason: ${{ steps.model.outputs.reason }}
     permissions:
       id-token: write
       contents: write
@@ -122,6 +127,7 @@ jobs:
           OPENCODE_CLIENT_ID: ${{ vars.OPENCODE_CLIENT_ID }}
         run: node script/agents/opencode-auth.mjs
       - name: Run OpenCode
+        id: model
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GIT_CONFIG_COUNT: '1'
@@ -132,7 +138,18 @@ jobs:
           MENTIONS: /opencode,/oc
           SHARE: 'false'
           OPENCODE_CONFIG_CONTENT: '{"share":"disabled","small_model":"${{ needs.authorize.outputs.model }}"}'
-        run: opencode github run
+        run: |
+          if timeout --kill-after=15s 10m opencode github run; then
+            exit 0
+          else
+            status=$?
+          fi
+          reason=agent_failed
+          if [[ "$status" == 124 || "$status" == 137 ]]; then
+            reason=timeout
+          fi
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          exit "$status"
 
   triage:
     name: Triage new issue
@@ -177,3 +194,27 @@ jobs:
             Оставь изменения кода, публикацию спецификации и тикетов, метки и
             согласование на следующие шаги процесса.
         run: opencode github run
+
+  report:
+    name: Report interrupted PR request
+    needs: [authorize, opencode]
+    if: >-
+      always() && !cancelled() && needs.authorize.outputs.pr != '' &&
+      (needs.authorize.outputs.reason == 'limit_exhausted' ||
+       (needs.authorize.outputs.allowed == 'true' && needs.opencode.result == 'failure'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Report reason, current head and logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.authorize.outputs.pr }}
+          REASON: ${{ needs.authorize.outputs.reason || needs.opencode.outputs.reason || 'infra' }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.head.sha')
+          printf 'Статус **нужен человек**. Причина %s. Последний SHA %s. [Журнал](%s/%s/actions/runs/%s).\n' \
+            "$REASON" "$head" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+            > "$RUNNER_TEMP/opencode-report.md"
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/opencode-report.md"
