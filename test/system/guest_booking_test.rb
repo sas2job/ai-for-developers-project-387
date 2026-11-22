@@ -112,6 +112,13 @@ class GuestBookingTest < ApplicationSystemTestCase
       guest_name: "Раньше",
       guest_email: "sooner-private@example.com"
     )
+    empty_type = EventType.create!(name: "Без встреч", description: "Не показывать", duration_minutes: 45)
+    empty_type.bookings.create!(
+      starts_at: 1.day.ago,
+      ends_at: 1.day.ago + 45.minutes,
+      guest_name: "Прошедшая",
+      guest_email: "past-private@example.com"
+    )
 
     visit admin_path
 
@@ -137,12 +144,23 @@ class GuestBookingTest < ApplicationSystemTestCase
     assert_text "Позже"
     assert_no_text "Раньше"
 
+    select empty_type.name, from: "Тип встречи"
+    click_button "Показать"
+
+    assert_current_path admin_path(event_type_id: empty_type.id)
+    assert_select_value empty_type.name
+    assert_text "Для типа «Без встреч» пока нет предстоящих встреч."
+    assert_no_text "Раньше"
+    assert_no_text "Позже"
+    assert_no_text "Прошедшая"
+
     select "Все типы", from: "Тип встречи"
     click_button "Показать"
 
     assert_select_value "Все типы"
     assert_text "Раньше"
     assert_text "Позже"
+    assert_no_text "Прошедшая"
     assert_operator page.text.index("Раньше"), :<, page.text.index("Позже")
   end
 
