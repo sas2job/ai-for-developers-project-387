@@ -113,7 +113,7 @@ jobs:
           current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.head.sha')
           if [[ "$head" == "$SHA" && "$head" == "$current" ]]; then
             {
-              printf '## Авторевью\n\nПроверенный SHA `%s`. [Прогон](%s/%s/actions/runs/%s).\n\n' \
+              printf '## Авторевью\n\nПроверенный SHA %s. [Прогон](%s/%s/actions/runs/%s).\n\n' \
                 "$head" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
               cat "$RUNNER_TEMP/review-result/review.md"
             } > "$RUNNER_TEMP/pr-review.md"
