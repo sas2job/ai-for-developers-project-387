@@ -11,13 +11,14 @@
 
 ## Разработка через GitHub
 
-Для прямого вызова модели подготовлен OpenCode: `/oc ЗАПРОС` или `/opencode ЗАПРОС`
-в комментарии к issue, PR или строке diff. Основная бесплатная модель —
-`opencode/glm-5.3-flash-free`, резервная — `opencode/deepseek-v4.1-flash-free`.
+Команды `/oc ЗАПРОС` и `/opencode ЗАПРОС` в новом комментарии к issue, PR
+или строке diff запускают бесплатную модель `opencode/deepseek-v4.1-flash-free`.
 Для GitHub используется `GITHUB_TOKEN`, для OpenCode — временный токен через GitHub OIDC;
 публикация сессий отключена.
 Настройка служебного аккаунта `OPENCODE_CLIENT_ID`, лимиты и проверка
 реального ответа описаны в [инструкции подключения](docs/agents/opencode-setup.md).
+Ответ проверен в [issue #3](https://github.com/sas2job/ai-for-developers-project-387/issues/3#issuecomment-7077181195),
+ход выполнения виден в [GitHub Actions](https://github.com/sas2job/ai-for-developers-project-387/actions/runs/45007674813).
 
 
 Процесс: обращение → предложение спецификации и тикетов → подтверждение человеком → реализация → PR → независимое ревью → исправления в той же ветке → решение человека о мерже.

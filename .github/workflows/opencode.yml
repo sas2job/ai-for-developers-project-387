@@ -18,7 +18,7 @@ env:
   AGENT_ALLOWED_ACTORS: ${{ vars.AGENT_ALLOWED_ACTORS || github.repository_owner }}
   AGENT_MAX_DAILY_RUNS: ${{ vars.AGENT_MAX_DAILY_RUNS || '10' }}
   AGENT_MAX_TARGET_RUNS: ${{ vars.AGENT_MAX_TARGET_RUNS || '6' }}
-  OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/glm-5.3-flash-free' }}
+  OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL }}
 
 jobs:
   authorize:

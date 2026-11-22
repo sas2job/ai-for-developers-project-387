@@ -54,7 +54,7 @@ function fixture(overrides = {}) {
 
 test("an allowed human can invoke the free model without any write API calls", async () => {
   const f = fixture();
-  assert.deepEqual(await f.run(), { allowed: "true", model: "opencode/glm-5.3-flash-free" });
+  assert.deepEqual(await f.run(), { allowed: "true", model: "opencode/deepseek-v4.1-flash-free" });
   assert.ok(f.requests.some(({ path }) => path.includes("created=%3E%3D2026-11-15")));
 });
 
@@ -83,12 +83,16 @@ test("invalid or unsafe GitHub comment IDs are rejected before looking up a comm
   }
 });
 
-test("the backup model is selectable, and paid or injected model names are refused", async () => {
+test("the free model can be set explicitly, and other model names are refused", async () => {
   const f = fixture({ OPENCODE_MODEL: "opencode/deepseek-v4.1-flash-free" });
   assert.equal((await f.run()).model, f.env.OPENCODE_MODEL);
-  for (const model of ["opencode/glm-5.3-flash", "opencode/big-pickle\nallowed=true"]) {
+  for (const model of [
+    "opencode/glm-5.3-flash-free",
+    "opencode/deepseek-v4.1-flash",
+    "opencode/deepseek-v4.1-flash-free\nallowed=true",
+  ]) {
     const invalid = fixture({ OPENCODE_MODEL: model });
-    await assert.rejects(invalid.run(), /free models/);
+    await assert.rejects(invalid.run(), /supported free OpenCode model/);
     assert.deepEqual(invalid.requests, []);
   }
 });

@@ -6,18 +6,16 @@ Workflow [OpenCode](../../.github/workflows/opencode.yml) вызывает мо�
 при доработке PR обновляет его ветку. Согласование плана и решение о мерже остаются
 за человеком. Инструкции модели: [opencode.md](opencode.md).
 
-Основная модель — `opencode/glm-5.3-flash-free`. Резервная —
-`opencode/deepseek-v4.1-flash-free`. У обеих сейчас нулевая цена токенов и поддержка
-инструментов. Бесплатные предложения временные, с ограничениями провайдера:
-[актуальные условия OpenCode](https://opencode.ai/docs/zen/).
+Workflow использует `opencode/deepseek-v4.1-flash-free`. Модель поддерживает
+инструменты и входит во временное бесплатное предложение провайдера.
+[Актуальные условия OpenCode](https://opencode.ai/docs/zen/).
 
 ## Настройка владельцем
 
 1. В [OpenCode Console](https://opencode.ai/console) откройте **Settings → Service
    accounts**. Для аккаунта проекта выберите вход **GitHub Actions**, репозиторий
    `sas2job/ai-for-developers-project-387`, **Runs from → Environment → opencode**.
-   Права аккаунта: **Models · Request**. Выбранные бесплатные модели должны быть
-   включены в workspace.
+   Выдайте аккаунту право **Models · Request** и включите модель в workspace.
 2. Создайте GitHub environment и сохраните выданный Console `client_id` в
    repository variable `OPENCODE_CLIENT_ID`:
 
@@ -39,15 +37,15 @@ Workflow [OpenCode](../../.github/workflows/opencode.yml) вызывает мо�
    реализацию. Оставьте `/oc` с запросом доработки в созданном PR или на строке diff.
    Сохраните ссылки на ответ, PR и оба запуска Actions как подтверждение интеграции.
 
-Для резерва владелец переключает repository variable:
+По умолчанию workflow выбирает `opencode/deepseek-v4.1-flash-free`. Чтобы явно
+закрепить тот же выбор в настройках GitHub Actions, установите переменную:
 
 ```bash
 gh variable set OPENCODE_MODEL --body opencode/deepseek-v4.1-flash-free --repo sas2job/ai-for-developers-project-387
 ```
 
-Основная модель возвращается значением `opencode/glm-5.3-flash-free`.
-Workflow допускает только эти два идентификатора. Переключение выполняют вручную:
-повторный запуск после частично выполненных правок требует проверки ветки.
+Проверяющая задача разрешает только этот идентификатор модели. После частично
+выполненных правок проверьте ветку перед повторным запросом.
 
 ## Авторизация и ограничения
 
