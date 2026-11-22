@@ -5,17 +5,6 @@ import { createGitHub } from "./github.mjs";
 import { boundedText, config, LIMITS, positiveInteger, requireValue } from "./policy.mjs";
 
 const models = ["opencode/glm-5.3-flash-free", "opencode/deepseek-v4.1-flash-free"];
-const preparedLabels = new Set(["ready-for-agent", "agent:spec", "agent:ticket"]);
-
-function isIncomingIssue(issue, actor) {
-  return (
-    issue?.user?.login === actor &&
-    issue.user.type === "User" &&
-    !issue.pull_request &&
-    Array.isArray(issue.labels) &&
-    !issue.labels.some((label) => preparedLabels.has(label.name))
-  );
-}
 
 export async function authorizeOpenCode({
   github,
@@ -27,6 +16,7 @@ export async function authorizeOpenCode({
   const actor = env.GITHUB_ACTOR;
   const triage = env.GITHUB_EVENT_NAME === "issues";
   const inline = env.GITHUB_EVENT_NAME === "pull_request_review_comment";
+  const author = triage ? event.issue?.user : event.comment?.user;
   requireValue(settings.enabled, "Agent automation disabled");
   requireValue(
     settings.allowedActors.includes(String(actor).toLowerCase()) && !actor.endsWith("[bot]"),
@@ -38,22 +28,19 @@ export async function authorizeOpenCode({
       event.action === (triage ? "opened" : "created") &&
       event.repository?.full_name === settings.repository &&
       event.sender?.login === actor &&
-      event.sender.type !== "Bot",
+      event.sender.type !== "Bot" &&
+      author?.login === actor &&
+      author.type !== "Bot",
     "Invalid OpenCode event or sender",
   );
   if (triage) {
     requireValue(isIncomingIssue(event.issue, actor), "Issue is ineligible for triage");
-  } else {
-    requireValue(
-      event.comment?.user?.login === actor && event.comment.user.type !== "Bot",
-      "Invalid OpenCode comment author",
-    );
-    const body = boundedText(event.comment.body, "OpenCode command");
-    requireValue(
-      /^\/(?:oc|opencode) +\S/.test(body),
-      "Expected /oc or /opencode followed by a request",
-    );
   }
+  const body = triage ? null : boundedText(event.comment.body, "OpenCode command");
+  requireValue(
+    triage || /^\/(?:oc|opencode) +\S/.test(body),
+    "Expected /oc or /opencode followed by a request",
+  );
   const model = env.OPENCODE_MODEL || models[0];
   requireValue(models.includes(model), "Only the configured free models are allowed");
   const target = positiveInteger(event.issue?.number || event.pull_request?.number);
@@ -68,10 +55,7 @@ export async function authorizeOpenCode({
     const comment = await get(
       `/${inline ? "pulls" : "issues"}/comments/${positiveInteger(event.comment.id, "comment")}`,
     );
-    requireValue(
-      comment.body === event.comment.body && comment.user?.login === actor,
-      "Trigger comment changed",
-    );
+    requireValue(comment.body === body && comment.user?.login === actor, "Trigger comment changed");
   }
   const issue = await get(`/issues/${target}`);
   requireValue(issue.state === "open", "Target must be open");
@@ -116,6 +100,18 @@ export async function authorizeOpenCode({
     if (runs.length < 100) return { allowed: "true", model };
   }
   throw new Error("Workflow history exceeds safe pagination limit");
+}
+
+const preparedLabels = new Set(["ready-for-agent", "agent:spec", "agent:ticket"]);
+
+function isIncomingIssue(issue, actor) {
+  return (
+    issue?.user?.login === actor &&
+    issue.user.type === "User" &&
+    !issue.pull_request &&
+    Array.isArray(issue.labels) &&
+    !issue.labels.some((label) => preparedLabels.has(label.name))
+  );
 }
 
 export async function main(env = process.env) {
