@@ -98,6 +98,28 @@ class AdminControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: "Для типа «Консультация» пока нет предстоящих встреч."
   end
 
+  test "distinguishes matching type names and keeps the reset option distinct" do
+    first_type = EventType.create!(name: "Первая консультация", description: "Первый тип", duration_minutes: 30)
+    second_type = EventType.create!(name: "Первая консультация", description: "Второй тип", duration_minutes: 30)
+    spaced_type = EventType.create!(name: "Первая  консультация", description: "Третий тип", duration_minutes: 45)
+    reset_named_type = EventType.create!(name: "Все типы", description: "Четвёртый тип", duration_minutes: 45)
+    create_booking(first_type, 1.day.from_now, "Гость первого типа")
+    create_booking(second_type, 2.days.from_now, "Гость второго типа")
+
+    get admin_path, params: { event_type_id: second_type.id }
+
+    assert_response :success
+    assert_select "select[name='event_type_id']" do
+      assert_select "option", text: "Все типы", count: 1
+      assert_select "option[value='']", "Все типы"
+      assert_select "option[value='#{first_type.id}']", "Первая консультация (30 мин., №#{first_type.id})"
+      assert_select "option[value='#{second_type.id}'][selected]", "Первая консультация (30 мин., №#{second_type.id})"
+      assert_select "option[value='#{spaced_type.id}']", "Первая консультация (45 мин., №#{spaced_type.id})"
+      assert_select "option[value='#{reset_named_type.id}']", "Все типы (45 мин., №#{reset_named_type.id})"
+    end
+    assert_select ".admin-booking-list li", count: 1, text: /Гость второго типа/
+  end
+
   test "shows all upcoming meetings when the requested type is invalid or missing" do
     first_type = EventType.create!(name: "Консультация", description: "Обсудить вопрос", duration_minutes: 30)
     second_type = EventType.create!(name: "Планирование", description: "Составить план", duration_minutes: 30)
