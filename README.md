@@ -40,6 +40,11 @@ Check запускает `bin/check` из точного head PR. В артеф�
 есть снимки браузера, журнал, результат и фактический SHA. Перед мержем человек
 сверяет SHA артефакта со свежим head PR и проверяет результат ревью.
 
+В CI закреплён Chrome for Testing `155.0.8059.84` с соответствующим ChromeDriver:
+эта версия проходит текущие системные тесты; Chrome 158 отклоняет очистку хранилища
+через Capybara 3.40. OpenAPI Generator той же версии загружается с официального
+`repo.maven.apache.org`, чтобы не зависеть от ограничений скачивания `repo1.maven.org`.
+
 Команды, ручные согласования, формат артефактов, ограничения выбранного режима и порядок активации описаны в [инструкции процесса](docs/agents/github-automation.md). Зафиксированные версии скиллов находятся в [docs/agents/skills](docs/agents/skills/source.json). Проверки обработчиков запускаются через `npm run test:agents` и включены в `bin/check`.
 
 Демонстрационная доработка: [обращение #4](https://github.com/sas2job/ai-for-developers-project-387/issues/4) → [спецификация #5](https://github.com/sas2job/ai-for-developers-project-387/issues/5) → [тикет #6](https://github.com/sas2job/ai-for-developers-project-387/issues/6) → [PR #7](https://github.com/sas2job/ai-for-developers-project-387/pull/7). Человек согласовал план и HTTP-/браузерные проверки. [Независимое ревью Standards / Spec](https://github.com/sas2job/ai-for-developers-project-387/pull/7#pullrequestreview-5906445227) не нашло замечаний; [CI](https://github.com/sas2job/ai-for-developers-project-387/pull/7/checks) прошёл. Полный `bin/check`: 32 Rails-теста и 5 браузерных тестов, без ошибок.
