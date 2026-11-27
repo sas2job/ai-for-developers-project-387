@@ -96,7 +96,7 @@ class GuestBookingTest < ApplicationSystemTestCase
     assert_equal 0, Booking.count
   end
 
-  test "owner sees upcoming bookings in order without guest emails" do
+  test "owner filters upcoming meetings and can reopen the filtered URL" do
     later_type = EventType.create!(name: "Планирование", description: "Не показывать описание", duration_minutes: 30)
     later = Time.current.beginning_of_day + 2.days + 9.hours
     sooner = Time.current.beginning_of_day + 1.day + 9.hours
@@ -112,6 +112,13 @@ class GuestBookingTest < ApplicationSystemTestCase
       guest_name: "Раньше",
       guest_email: "sooner-private@example.com"
     )
+    empty_type = EventType.create!(name: "Без встреч", description: "Не показывать", duration_minutes: 45)
+    empty_type.bookings.create!(
+      starts_at: 1.day.ago,
+      ends_at: 1.day.ago + 45.minutes,
+      guest_name: "Прошедшая",
+      guest_email: "past-private@example.com"
+    )
 
     visit admin_path
 
@@ -119,9 +126,56 @@ class GuestBookingTest < ApplicationSystemTestCase
     assert_operator page.text.index("Раньше"), :<, page.text.index("Позже")
     assert_no_text "private@example.com"
     assert_no_text "Не показывать описание"
+
+    assert_select_value "Все типы"
+    select @event_type.name, from: "Тип встречи"
+    click_button "Показать"
+
+    assert_current_path admin_path(event_type_id: @event_type.id)
+    assert_text "Позже"
+    assert_no_text "Раньше"
+
+    filtered_url = page.current_url
+    visit admin_path
+    assert_text "Раньше"
+    visit filtered_url
+
+    assert_select_value @event_type.name
+    assert_text "Позже"
+    assert_no_text "Раньше"
+
+    select empty_type.name, from: "Тип встречи"
+    click_button "Показать"
+
+    assert_current_path admin_path(event_type_id: empty_type.id)
+    assert_select_value empty_type.name
+    assert_text "Для типа «Без встреч» пока нет предстоящих встреч."
+    assert_no_text "Раньше"
+    assert_no_text "Позже"
+    assert_no_text "Прошедшая"
+
+    select "Все типы", from: "Тип встречи"
+    click_button "Показать"
+
+    assert_select_value "Все типы"
+    reset_url = page.current_url
+    reset_event_type_id = Rack::Utils.parse_query(URI.parse(reset_url).query)["event_type_id"]
+    assert reset_event_type_id.blank?, "URL после сброса не должен содержать выбранный тип: #{reset_url}"
+
+    visit reset_url
+
+    assert_select_value "Все типы"
+    assert_text "Раньше"
+    assert_text "Позже"
+    assert_no_text "Прошедшая"
+    assert_operator page.text.index("Раньше"), :<, page.text.index("Позже")
   end
 
   private
+
+  def assert_select_value(value)
+    assert_selector :select, "Тип встречи", selected: value
+  end
 
   def available_date
     Availability::Slots.window_dates.find do |date|

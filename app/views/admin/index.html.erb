@@ -56,6 +56,16 @@
 
     <section class="admin-section" aria-labelledby="upcoming-bookings-title">
       <h2 id="upcoming-bookings-title">Предстоящие встречи</h2>
+      <%= form_with url: admin_path, method: :get, class: "admin-booking-filter" do |form| %>
+        <div class="form-field">
+          <%= form.label :event_type_id, "Тип встречи" %>
+          <% all_types_label = "Все типы" %>
+          <%= form.select :event_type_id, event_type_filter_options(@event_types, all_types_label),
+                          include_blank: all_types_label, selected: @selected_event_type&.id %>
+        </div>
+        <%= form.submit "Показать", name: nil, class: "button button--secondary" %>
+      <% end %>
+
       <% if @upcoming_bookings.any? %>
         <ul class="admin-booking-list">
           <% @upcoming_bookings.each do |booking| %>
@@ -69,6 +79,8 @@
             </li>
           <% end %>
         </ul>
+      <% elsif @selected_event_type %>
+        <p class="empty-state__text">Для типа «<%= @selected_event_type.name %>» пока нет предстоящих встреч.</p>
       <% else %>
         <p class="empty-state__text">Предстоящих встреч пока нет.</p>
       <% end %>

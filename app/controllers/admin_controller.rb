@@ -2,7 +2,7 @@ class AdminController < ApplicationController
   def index
     @event_type = EventType.new
     @event_types = EventType.order(:id)
-    load_upcoming_bookings
+    load_upcoming_bookings(params[:event_type_id])
   end
 
   def create_event_type
@@ -19,8 +19,10 @@ class AdminController < ApplicationController
 
   private
 
-  def load_upcoming_bookings
+  def load_upcoming_bookings(event_type_id = nil)
+    @selected_event_type = @event_types.find { |event_type| event_type.id.to_s == event_type_id }
     @upcoming_bookings = Booking.upcoming
+    @upcoming_bookings = @upcoming_bookings.where(event_type: @selected_event_type) if @selected_event_type
   end
 
   def admin_event_type_params
