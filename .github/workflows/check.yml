@@ -61,10 +61,17 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Install the browser used by the verified system tests
+        id: chrome
+        uses: browser-actions/setup-chrome@48483d551c22a1fe6154c6a195ccc6d5773dc8c4 # v2
+        with:
+          chrome-version: 155.0.8059.84
+          install-chromedriver: true
       - name: Run bin/check
         id: check
         shell: bash
         env:
+          SE_BROWSER_PATH: ${{ steps.chrome.outputs.chrome-path }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
           BROWSER_EVIDENCE_DIR: ${{ github.event_name == 'pull_request' && format('{0}/browser-evidence', runner.temp) || '' }}
         run: |

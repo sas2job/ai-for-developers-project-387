@@ -6,17 +6,38 @@ Workflow [OpenCode](../../.github/workflows/opencode.yml) вызывает мо�
 при доработке PR обновляет его ветку. Согласование плана и решение о мерже остаются
 за человеком. Инструкции модели: [opencode.md](opencode.md).
 
-Основная модель — `opencode/glm-5.3-flash-free`. Резервная —
-`opencode/deepseek-v4.1-flash-free`. У обеих сейчас нулевая цена токенов и поддержка
-инструментов. Бесплатные предложения временные, с ограничениями провайдера:
+Основная модель — платная `opencode/deepseek-v4.1-flash`. Бесплатные резервные —
+`opencode/glm-5.3-flash-free` и `opencode/deepseek-v4.1-flash-free`. Все три модели
+поддерживают инструменты. Бесплатные предложения временные, с ограничениями провайдера:
 [актуальные условия OpenCode](https://opencode.ai/docs/zen/).
 
 ## Настройка владельцем
 
+Для пространства **Hexlet Students** создайте отдельный ключ в **Account → Personal
+API keys**, выберите это пространство и право **Models · Request**. Сохраните ключ
+только в GitHub **Settings → Environments → opencode → Environment secrets** под
+именем `OPENCODE_API_KEY`. Участник пространства может выдать ключу только вызов
+моделей; расходы подчиняются его бюджету и правилам пространства. Для CI команды
+также подходят ключи служебного аккаунта с тем же правом, если его настроит
+администратор пространства. Личная OAuth-сессия CLI в GitHub не передаётся.
+
+Ключ проекта создан на 90 дней: перед истечением срока создайте новый и обновите
+секрет. При отозванном или просроченном непустом ключе workflow останавливается,
+не переключая расходы на резервный аккаунт. Цены и скидки проверяйте в
+[каталоге моделей](https://opencode.ai/console/models), а не фиксируйте в коде.
+
+После мержа этой настройки выберите платную модель:
+
+```bash
+gh variable set OPENCODE_MODEL --body opencode/deepseek-v4.1-flash --repo sas2job/ai-for-developers-project-387
+```
+
+Для резервного входа через GitHub OIDC, когда секрет отсутствует:
+
 1. В [OpenCode Console](https://opencode.ai/console) откройте **Settings → Service
    accounts**. Для аккаунта проекта выберите вход **GitHub Actions**, репозиторий
    `sas2job/ai-for-developers-project-387`, **Runs from → Environment → opencode**.
-   Права аккаунта: **Models · Request**. Выбранные бесплатные модели должны быть
+   Права аккаунта: **Models · Request**. Выбранные модели должны быть
    включены в workspace.
 2. Создайте GitHub environment и сохраните выданный Console `client_id` в
    repository variable `OPENCODE_CLIENT_ID`:
@@ -45,18 +66,19 @@ Workflow [OpenCode](../../.github/workflows/opencode.yml) вызывает мо�
 gh variable set OPENCODE_MODEL --body opencode/deepseek-v4.1-flash-free --repo sas2job/ai-for-developers-project-387
 ```
 
-Основная модель возвращается значением `opencode/glm-5.3-flash-free`.
-Workflow допускает только эти два идентификатора. Переключение выполняют вручную:
+Основная модель возвращается значением `opencode/deepseek-v4.1-flash`.
+Workflow допускает только эти три идентификатора. Переключение выполняют вручную:
 повторный запуск после частично выполненных правок требует проверки ветки.
 
 ## Авторизация и ограничения
 
 Для операций с репозиторием CLI `opencode github run` использует
 `USE_GITHUB_TOKEN=true` и repository `GITHUB_TOKEN`. Установка GitHub App и PAT
-не требуются. Для обращения к моделям отдельный шаг получает GitHub OIDC JWT с
+не требуются. Для обращения к моделям используется `OPENCODE_API_KEY` из
+секрета окружения, если он задан. Иначе отдельный шаг получает GitHub OIDC JWT с
 audience `https://opencode.ai/console` и обменивает его в Console на временный
 access token. Этот токен передаётся CLI как `OPENCODE_API_KEY` через `GITHUB_ENV`;
-постоянный repository secret не нужен. Оба токена маскируются в логах; ошибки
+При OIDC постоянный секрет не нужен. Ключ и временные токены маскируются в логах; ошибки
 не включают ответы сервера и значения credentials. Запросы ограничены таймаутом,
 размером ответа и доверенными HTTPS endpoints; redirects запрещены.
 
