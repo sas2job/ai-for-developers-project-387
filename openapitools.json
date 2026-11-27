@@ -4,7 +4,7 @@
   "generator-cli": {
     "version": "7.26.0",
     "repository": {
-      "downloadUrl": "https://repo.maven.apache.org/maven2/${groupId}/${artifactId}/${versionName}/${artifactId}-${versionName}.jar"
+      "downloadUrl": "https://github.com/OpenAPITools/openapi-generator/releases/download/v${versionName}/${artifactId}-${versionName}.jar"
     }
   }
 }

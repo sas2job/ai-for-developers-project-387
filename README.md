@@ -42,8 +42,8 @@ Check запускает `bin/check` из точного head PR. В артеф�
 
 В CI закреплён Chrome for Testing `155.0.8059.84` с соответствующим ChromeDriver:
 эта версия проходит текущие системные тесты; Chrome 158 отклоняет очистку хранилища
-через Capybara 3.40. OpenAPI Generator той же версии загружается с официального
-`repo.maven.apache.org`, чтобы не зависеть от ограничений скачивания `repo1.maven.org`.
+через Capybara 3.40. OpenAPI Generator той же версии загружается из официального
+GitHub Release, чтобы не зависеть от ограничений скачивания Maven Central.
 
 Команды, ручные согласования, формат артефактов, ограничения выбранного режима и порядок активации описаны в [инструкции процесса](docs/agents/github-automation.md). Зафиксированные версии скиллов находятся в [docs/agents/skills](docs/agents/skills/source.json). Проверки обработчиков запускаются через `npm run test:agents` и включены в `bin/check`.
 
