@@ -92,8 +92,10 @@ export async function signIn({
   log = (line) => process.stdout.write(line),
 } = {}) {
   requireValue(env.GITHUB_ENV, "GitHub environment file is missing");
-  const credentials = await consoleCredentials({ env, fetchImpl });
-  log(`::add-mask::${credentials.oidc}\n`);
+  const credentials = env.OPENCODE_API_KEY
+    ? { accessToken: token(env.OPENCODE_API_KEY, "Console API key") }
+    : await consoleCredentials({ env, fetchImpl });
+  if (credentials.oidc) log(`::add-mask::${credentials.oidc}\n`);
   log(`::add-mask::${credentials.accessToken}\n`);
   await appendFile(env.GITHUB_ENV, `OPENCODE_API_KEY=${credentials.accessToken}\n`, {
     mode: 0o600,

@@ -4,7 +4,11 @@ import { pathToFileURL } from "node:url";
 import { createGitHub } from "./github.mjs";
 import { boundedText, config, LIMITS, positiveInteger, requireValue } from "./policy.mjs";
 
-const models = ["opencode/glm-5.3-flash-free", "opencode/deepseek-v4.1-flash-free"];
+const models = [
+  "opencode/deepseek-v4.1-flash",
+  "opencode/glm-5.3-flash-free",
+  "opencode/deepseek-v4.1-flash-free",
+];
 
 class BudgetExhausted extends Error {
   constructor(message, pr) {
@@ -79,7 +83,7 @@ export async function authorizeOpenCode({
     "Expected /oc or /opencode followed by a request",
   );
   const model = env.OPENCODE_MODEL || models[0];
-  requireValue(models.includes(model), "Only the configured free models are allowed");
+  requireValue(models.includes(model), "Only the configured models are allowed");
   const target = positiveInteger(event.issue?.number || event.pull_request?.number);
   const base = `/repos/${settings.repository}`;
   const get = (path) => github.request("GET", `${base}${path}`);

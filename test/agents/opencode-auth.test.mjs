@@ -170,3 +170,57 @@ test("a failed exchange leaves no token in the environment file or log", async (
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("an environment API key is masked and used without requesting GitHub OIDC", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "opencode-auth-"));
+  try {
+    const env = {
+      OPENCODE_API_KEY: "oc_sk_scoped-model-key",
+      GITHUB_ENV: join(directory, "github-env"),
+    };
+    let output = "";
+    await signIn({
+      env,
+      fetchImpl: () => assert.fail("API-key authentication must not request OIDC"),
+      log: (line) => {
+        output += line;
+      },
+    });
+    assert.equal(output, "::add-mask::oc_sk_scoped-model-key\n");
+    assert.equal(
+      await readFile(env.GITHUB_ENV, "utf8"),
+      "OPENCODE_API_KEY=oc_sk_scoped-model-key\n",
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("malformed API keys cannot inject environment entries or silently fall back to OIDC", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "opencode-auth-"));
+  try {
+    for (const key of [
+      "secret\nOTHER=value",
+      "secret\r::warning::injected",
+      " ",
+      "x".repeat(16_385),
+    ]) {
+      const env = { OPENCODE_API_KEY: key, GITHUB_ENV: join(directory, "github-env") };
+      let output = "";
+      await assert.rejects(
+        signIn({
+          env,
+          fetchImpl: () => assert.fail("Unexpected OIDC fallback"),
+          log: (line) => {
+            output += line;
+          },
+        }),
+        /Invalid Console API key/,
+      );
+      assert.equal(output, "");
+      await assert.rejects(readFile(env.GITHUB_ENV), { code: "ENOENT" });
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
