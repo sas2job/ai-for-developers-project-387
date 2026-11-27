@@ -21,7 +21,7 @@ env:
   AGENT_MAX_DAILY_RUNS: ${{ vars.AGENT_MAX_DAILY_RUNS || '10' }}
   AGENT_MAX_TARGET_RUNS: ${{ vars.AGENT_MAX_TARGET_RUNS || '6' }}
   AGENT_MAX_PR_RUNS: ${{ vars.AGENT_MAX_PR_RUNS || '3' }}
-  OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/glm-5.3-flash-free' }}
+  OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4.1-flash' }}
 
 jobs:
   authorize:
@@ -122,8 +122,9 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-      - name: Sign in to OpenCode Console with GitHub OIDC
+      - name: Authenticate OpenCode Console
         env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_CLIENT_ID: ${{ vars.OPENCODE_CLIENT_ID }}
         run: node script/agents/opencode-auth.mjs
       - name: Run OpenCode
@@ -171,8 +172,9 @@ jobs:
         with:
           node-version-file: .node-version
       - uses: ./.github/actions/install-opencode
-      - name: Sign in to OpenCode Console with GitHub OIDC
+      - name: Authenticate OpenCode Console
         env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_CLIENT_ID: ${{ vars.OPENCODE_CLIENT_ID }}
         run: node script/agents/opencode-auth.mjs
       - name: Triage without changing code or tracker state
