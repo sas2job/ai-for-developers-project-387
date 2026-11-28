@@ -53,6 +53,13 @@ export async function finishAudit({
   env = process.env,
   fetchImpl = fetch,
 }) {
+  if (String(env.AGENT_ENABLED).toLowerCase() === "false")
+    return {
+      skipped: "disabled",
+      created: 0,
+      duplicates: 0,
+      markdown: "Аудит отключён: AGENT_ENABLED=false.\n",
+    };
   validateReport(report);
   validateAnalysis(analysis, report);
   const run = `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`;

@@ -161,3 +161,18 @@ test("publication can be disabled while retaining the model conclusion", async (
   assert.equal(result.created, 0);
   assert.match(result.markdown, /HTTP 503/);
 });
+
+test("the kill switch prevents both finding and journal publication even after model execution", async () => {
+  const report = await failedReport();
+  const result = await finishAudit({
+    report,
+    analysis: analysisFor(report),
+    env: { ...env, AGENT_ENABLED: "false" },
+    fetchImpl: async () => {
+      throw new Error("Disabled audits must never contact GitHub");
+    },
+  });
+  assert.equal(result.skipped, "disabled");
+  assert.equal(result.created, 0);
+  assert.match(result.markdown, /Аудит отключён/);
+});
