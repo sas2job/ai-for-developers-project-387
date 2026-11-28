@@ -17,7 +17,7 @@ function exactKeys(value, expected) {
   );
 }
 
-async function githubRequest(fetchImpl, url, options) {
+export async function githubRequest(fetchImpl, url, options) {
   let response;
   try {
     response = await fetchImpl(url, {
@@ -46,7 +46,14 @@ export function validateReport(report) {
     throw new Error("Invalid health report schema or finding");
   };
   if (
-    !exactKeys(report, ["schemaVersion", "observedAt", "endpoint", "status", "findings"]) ||
+    !exactKeys(report, [
+      "schemaVersion",
+      "observedAt",
+      "endpoint",
+      "status",
+      "findings",
+      ...(report?.training === true ? ["training"] : []),
+    ]) ||
     report.schemaVersion !== 1 ||
     typeof report.observedAt !== "string" ||
     !Number.isFinite(Date.parse(report.observedAt)) ||
@@ -65,7 +72,7 @@ export function validateReport(report) {
       !exactKeys(item, ["fingerprint", "title", "body", "kind"]) ||
       typeof item.kind !== "string" ||
       !Object.hasOwn(FINDING_TITLES, item.kind) ||
-      item.fingerprint !== findingFingerprint(report.endpoint, item.kind) ||
+      item.fingerprint !== findingFingerprint(report.endpoint, item.kind, report.training) ||
       item.title !== FINDING_TITLES[item.kind] ||
       typeof item.body !== "string" ||
       item.body.length > 1024 ||
@@ -80,11 +87,7 @@ export function validateReport(report) {
   return report;
 }
 
-export async function publishAudit({ report, env = process.env, fetchImpl = fetch }) {
-  if (String(env.AGENT_ENABLED).toLowerCase() === "false")
-    return { skipped: "disabled", created: 0, duplicates: 0 };
-  validateReport(report);
-  if (report.findings.length === 0) return { created: 0, duplicates: 0 };
+export function validateAuditContext(env) {
   const repository = env.GITHUB_REPOSITORY;
   const owner = repository?.split("/")[0];
   if (
@@ -104,6 +107,10 @@ export async function publishAudit({ report, env = process.env, fetchImpl = fetc
       "Invalid audit publishing context: expected scheduled or owner manual GitHub Actions execution",
     );
   }
+}
+
+export async function listAuditIssues({ env = process.env, fetchImpl = fetch } = {}) {
+  validateAuditContext(env);
   const url = `https://api.github.com/repos/${env.GITHUB_REPOSITORY}/issues`;
   const headers = {
     Authorization: `Bearer ${env.GH_TOKEN}`,
@@ -134,11 +141,41 @@ export async function publishAudit({ report, env = process.env, fetchImpl = fetc
     if (page === 100)
       throw new Error("Audit issue pagination limit exceeded; no issues were created");
   }
+  return issues;
+}
+
+export async function publishAudit({ report, analysis, env = process.env, fetchImpl = fetch }) {
+  if (String(env.AGENT_ENABLED).toLowerCase() === "false")
+    return { skipped: "disabled", created: 0, duplicates: 0 };
+  validateReport(report);
+  if (report.findings.length === 0) return { created: 0, duplicates: 0 };
+  const issues = await listAuditIssues({ env, fetchImpl });
+  const url = `https://api.github.com/repos/${env.GITHUB_REPOSITORY}/issues`;
+  const headers = {
+    Authorization: `Bearer ${env.GH_TOKEN}`,
+    Accept: "application/vnd.github+json",
+  };
   let created = 0;
   let duplicates = 0;
   for (const finding of report.findings) {
     const marker = `<!-- agent:audit fingerprint:${finding.fingerprint} -->`;
+    const existingIssue = analysis?.findings.find(
+      (item) => item.fingerprint === finding.fingerprint,
+    )?.existingIssue;
     if (
+      existingIssue &&
+      !issues.some(
+        (issue) =>
+          issue.number === existingIssue &&
+          issue.state === "open" &&
+          !issue.pull_request &&
+          !issue.body?.includes("<!-- agent:audit journal:v1 -->") &&
+          Boolean(issue.title?.startsWith("[Учебный аудит]")) === Boolean(report.training),
+      )
+    )
+      throw new Error("The model's duplicate issue is no longer open; rerun the audit");
+    if (
+      existingIssue ||
       issues.some(
         (issue) =>
           issue.state === "open" &&
@@ -153,8 +190,8 @@ export async function publishAudit({ report, env = process.env, fetchImpl = fetc
       method: "POST",
       headers,
       body: JSON.stringify({
-        title: `[Health audit] ${finding.title}`,
-        body: `${finding.body}\n\nEndpoint: ${report.endpoint}\nObserved at: ${report.observedAt}\nRun: https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}\n\n${marker}`,
+        title: `${report.training ? "[Учебный аудит]" : "[Health audit]"} ${finding.title}`,
+        body: `${report.training ? "**Учебная находка: синтетический HTTP 503. Это не подтверждённый дефект приложения.**\n\n" : ""}${finding.body}\n\nПредлагаемое действие: ${analysis?.findings.find((item) => item.fingerprint === finding.fingerprint)?.action || "Проверить доступность endpoint и конфигурацию сервиса, воспроизвести ответ из отчёта и согласовать исправление с владельцем."}\n\n${analysis ? `Вывод агента: ${analysis.summary}\n\n` : ""}Endpoint: ${report.endpoint}\nObserved at: ${report.observedAt}\nRun: https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}\nReport: application-health-report / health-report.json\n\nРешение о реализации принимает человек.\n\n${marker}`,
         labels: ["agent:audit", "needs-triage"],
       }),
     });
