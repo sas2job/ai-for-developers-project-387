@@ -66,7 +66,9 @@ GitHub Release, чтобы не зависеть от ограничений с�
 
 Проверенное исходное состояние: [автоматический прогон прежнего сборщика](https://github.com/sas2job/ai-for-developers-project-387/actions/runs/46036391385) успешен в `main`, но вызова модели в нём ещё нет. Новая версия проверена из ветки `feat/scheduled-model-audit`: [анализ без публикации](https://github.com/sas2job/ai-for-developers-project-387/actions/runs/46122809644), [создание учебной задачи](https://github.com/sas2job/ai-for-developers-project-387/actions/runs/46122883452), [повтор с теми же данными](https://github.com/sas2job/ai-for-developers-project-387/actions/runs/46123012911). Все три прогона успешны. Создана [учебная issue #25](https://github.com/sas2job/ai-for-developers-project-387/issues/25); повтор нашёл её и вернул `created: 0, duplicates: 1`, новых задач и комментариев нет. Постоянный вывод — [журнал #26](https://github.com/sas2job/ai-for-developers-project-387/issues/26).
 
-[PR #24](https://github.com/sas2job/ai-for-developers-project-387/pull/24) готовит включение новой версии. Для завершения учебного этапа после решения человека о мерже нужны ручные прогоны этой версии из `main` и личные выводы владельца. Прогоны из ветки не заменяют зачётную проверку.
+[PR #24](https://github.com/sas2job/ai-for-developers-project-387/pull/24) готовит включение новой версии. Для завершения учебного этапа после решения человека о мерже нужны ручные прогоны этой версии из `main`. Прогоны из ветки не заменяют зачётную проверку.
+
+Личный вывод: учебный отчёт позволил проверить создание задачи без выдумывания дефекта приложения. Повторный запуск нашёл существующую issue и не создал дублей.
 
 ## Как открыть приложение
 
