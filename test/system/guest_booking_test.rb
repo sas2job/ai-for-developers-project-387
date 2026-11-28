@@ -157,6 +157,7 @@ class GuestBookingTest < ApplicationSystemTestCase
     select "Все типы", from: "Тип встречи"
     click_button "Показать"
 
+    assert_text "Раньше"
     assert_select_value "Все типы"
     reset_url = page.current_url
     reset_event_type_id = Rack::Utils.parse_query(URI.parse(reset_url).query)["event_type_id"]
