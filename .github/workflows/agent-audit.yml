@@ -2,13 +2,17 @@ name: Application audit
 
 on:
   schedule:
-    - cron: '17 6 * * 1-5'
+    - cron: '17 3 * * *' # 06:17 Europe/Moscow (UTC+3)
   workflow_dispatch:
     inputs:
       publish:
         description: Create issues for new findings
         type: boolean
         default: true
+      training:
+        description: Use a synthetic HTTP 503 report (not an application defect)
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -28,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -36,7 +40,11 @@ jobs:
       - name: Collect the bounded application health report
         env:
           AGENT_HEALTH_URL: ${{ vars.AGENT_HEALTH_URL || 'https://ai-hexlet.duckdns.org/api/health' }}
-        run: node script/agents/report.mjs --url "$AGENT_HEALTH_URL" --output "$RUNNER_TEMP/health-report.json"
+          TRAINING: ${{ github.event_name == 'workflow_dispatch' && inputs.training }}
+        run: |
+          options=()
+          if [[ "$TRAINING" == true ]]; then options=(--training); fi
+          node script/agents/report.mjs --url "$AGENT_HEALTH_URL" --output "$RUNNER_TEMP/health-report.json" "${options[@]}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: application-health-report
@@ -44,18 +52,22 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  findings:
+  analyze:
     needs: report
-    if: github.event_name == 'schedule' || inputs.publish
+    if: vars.AGENT_ENABLED != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 9
+    environment: opencode
     permissions:
       contents: read
-      issues: write
+      issues: read
+      id-token: write
+    env:
+      OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4.1-flash' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -64,8 +76,75 @@ jobs:
         with:
           name: application-health-report
           path: ${{ runner.temp }}/audit/
-      - name: Create only new finding issues
+      - name: Find existing issues and prepare model input
         env:
           GH_TOKEN: ${{ github.token }}
+        run: node script/agents/audit-agent.mjs --report "$RUNNER_TEMP/audit/health-report.json" --context "$RUNNER_TEMP/audit-context.json"
+      - uses: ./.github/actions/install-opencode
+      - name: Authenticate the model provider
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_CLIENT_ID: ${{ vars.OPENCODE_CLIENT_ID }}
+        run: node script/agents/opencode-auth.mjs
+      - name: Analyze the report with an explicit prompt
+        env:
+          OPENCODE_CONFIG_CONTENT: '{"share":"disabled","small_model":"${{ env.OPENCODE_MODEL }}","permission":{"*":"deny"}}'
+        run: |
+          prompt="$(cat docs/agents/prompts/audit.md)"
+          cd "$RUNNER_TEMP"
+          model_options=()
+          if [[ "$OPENCODE_MODEL" == opencode/deepseek-v4.1-flash ]]; then model_options=(--variant low); fi
+          timeout --kill-after=15s 6m opencode run --model "$OPENCODE_MODEL" --format json \
+            "${model_options[@]}" "$prompt" < audit-context.json > audit-session.jsonl
+          jq -er -s '
+            if any(.[]; .type == "error") then error("OpenCode audit failed")
+            else [.[] | select(.type == "text") | .part.text] | join("\n") | select(length > 0)
+            end
+          ' audit-session.jsonl > "$RUNNER_TEMP/audit/analysis.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: application-audit-analysis
+          path: ${{ runner.temp }}/audit/analysis.json
+          retention-days: 7
+          if-no-files-found: error
+
+  findings:
+    needs: analyze
+    if: vars.AGENT_ENABLED != 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: application-health-report
+          path: ${{ runner.temp }}/audit/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: application-audit-analysis
+          path: ${{ runner.temp }}/audit/
+      - name: Save the conclusion and create only new finding issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH: ${{ github.event_name == 'schedule' || inputs.publish }}
           AGENT_ENABLED: ${{ vars.AGENT_ENABLED || 'true' }}
-        run: node script/agents/audit.mjs --report "$RUNNER_TEMP/audit/health-report.json"
+        run: |
+          options=()
+          if [[ "$PUBLISH" == true ]]; then options=(--publish); fi
+          node script/agents/audit-agent.mjs --report "$RUNNER_TEMP/audit/health-report.json" \
+            --analysis "$RUNNER_TEMP/audit/analysis.json" --output "$RUNNER_TEMP/audit/conclusion.md" "${options[@]}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: application-audit-conclusion
+          path: ${{ runner.temp }}/audit/conclusion.md
+          retention-days: 7
+          if-no-files-found: error

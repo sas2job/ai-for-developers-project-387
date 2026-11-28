@@ -19,8 +19,10 @@ export const FINDING_BODIES = Object.freeze({
   timeout: "The public health endpoint did not complete within the 10 second request budget.",
 });
 
-export function findingFingerprint(endpoint, kind) {
-  return createHash("sha256").update(`${endpoint}\n${kind}`).digest("hex");
+export function findingFingerprint(endpoint, kind, training = false) {
+  return createHash("sha256")
+    .update(`${training ? "training\n" : ""}${endpoint}\n${kind}`)
+    .digest("hex");
 }
 
 function finding(endpoint, kind, body = FINDING_BODIES[kind]) {
@@ -156,11 +158,20 @@ export async function runReport(args, { env = process.env, fetchImpl = fetch } =
   if (String(env.AGENT_ENABLED).toLowerCase() === "false") return { skipped: "disabled" };
   const { values } = parseArgs({
     args,
-    options: { url: { type: "string" }, output: { type: "string" } },
+    options: { url: { type: "string" }, output: { type: "string" }, training: { type: "boolean" } },
     strict: true,
   });
   if (!values.output) throw new Error("Health report requires --output <path>");
-  const report = await probeHealth({ url: values.url, fetchImpl });
+  const report = await probeHealth({
+    url: values.url,
+    fetchImpl: values.training ? async () => new Response(null, { status: 503 }) : fetchImpl,
+    ...(values.training ? { observedAt: "2026-11-28T00:00:00.000Z" } : {}),
+  });
+  if (values.training) {
+    report.training = true;
+    for (const item of report.findings)
+      item.fingerprint = findingFingerprint(report.endpoint, item.kind, true);
+  }
   await writeFile(values.output, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
   return report;
 }
